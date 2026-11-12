@@ -1,0 +1,21 @@
+Review is done from source reading only; I ran nothing. Bounded closure: the fix resolves the reported issue and I found no defect in local or inline modes or in cleanup and client lifecycle.
+
+**Reported issue: fixed**
+- **Outbox ownership:** in `gcp`/`aws`, `publicationOwners` returns only the document store with the provider publisher (`cmd/document/main.go:153-155`), and `run` starts `Recover`/`Run` only for those owners (`main.go:119-125`). The identity outbox is no longer drained into document publication, so wallet notices cannot reach this queue from this process.
+- **Document outbox contents:** only `Store.Append` writes publication notices (toolbox `stores/event/store.go:224-225`), and document appends use the configured network/service/`Domain` root (`examples/document/document.go:70`). The rejection journal writes through the backend, not `Append`, so it emits no notices the new router would reject.
+- **Router:** `publicationRouter.Publish` (`main.go:168-177`) accepts only the configured network, service and document domain, and returns `ErrForbidden` for everything else. It matches the app's own `admit` rule (`examples/document/app.go:250-253`).
+
+**Local and inline: not broken**
+- **Local:** no owners are started. This is equivalent to before, because `Store.Deliver` is a no-op when `Local` is set and local appends write no notices.
+- **Inline:** both outboxes are drained. The document owner gets `app.Publisher`, which `New` sets to the publication adapter (`app.go:94-96`). The identity owner gets `SessionProjection`, which returns nil for non-session notices (`httpapi/http.go:86-88`), so they are deleted rather than retried.
+- **Consumer and queue:** these remain nil outside `gcp`/`aws`, so the router is never built in local or inline.
+
+**Cleanup and lifecycle: intact**
+- The cancel-and-join defer (`main.go:118`) is registered after the publisher, queue, peer and backend closers, so it runs first and workers are joined before any SDK or backend closes.
+- The `owner` capture in the worker closure is safe: `go.mod` declares `go 1.26.0`, so the loop variable is per-iteration.
+- Worker failure propagation and `serve` are unchanged.
+
+**Residual notes (none blocking)**
+1. **Unproven wiring in `run`:** `main_test.go:39-69` covers selection and `main_test.go:23-38` covers routing, but nothing on disk proves that remote `run` leaves identity notices pending while document notices drain. The native regression the other owner is adding is the closing evidence.
+2. **Dependency on the Dia runtime in cloud modes:** identity writes made through this executable's `/identity/` routes now stay pending until a Dia runtime on the same identity namespace drains them. `GET /identity/views/session` (`httpapi/http.go:58-76`) reads the projection that runtime produces. `deployment/config_test.go:170` appears to pin the document identity namespace to the Dia runtime's namespace, and `cmd/document/README.md:40-42` states the ownership. The README does not say a co-deployed Dia runtime is required.
+3. **Rejected notices are retried, not dropped:** the SQS consumer keeps a failed message for redelivery and leaves poison handling to the queue's redrive policy (toolbox `runtime/publication/aws.go:97-98`). A foreign notice on a misconfigured shared subscription therefore loops until redrive. `deploy/examples` contains no redrive or dead-letter setting. I did not read the GCP consumer.

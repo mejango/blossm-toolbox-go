@@ -6,10 +6,10 @@ module. Toolbox owns no Dia models, policies, application runtime or executable.
 The [154-package inventory](capabilities.md) and [behavior ledger](behavior-coverage.md)
 retain the original framework and application capabilities with explicit owners.
 
-Current source-split verification is pending parent gates. Existing logs,
+Current local source-split verification passes; see [the evidence](SEPARATION.md). Existing logs,
 manifests and reviews describe their recorded pre-split source and remain
 unchanged. Source links describe ownership, not successful execution. External
-Dia links use the paired review branch recorded in capabilities.json; they
+Dia links use the paired source commit recorded in capabilities.json; they
 are not references to a required local checkout.
 
 ## Capability owners

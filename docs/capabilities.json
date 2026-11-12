@@ -12382,13 +12382,14 @@
     "evidence_scope": "Historical pre-split checkpoint; not current independent-module execution evidence."
   },
   "verification_stage": {
-    "overall": "source-split-verification-pending",
-    "remaining": "Current owning-source anchors are being reconciled across two independent modules. Fresh source-split gates and paired commit pins belong to the parent; pre-split passes are historical only.",
+    "overall": "source-split-locally-verified",
+    "remaining": "Paired PR review/approval and merge remain separate. No live provider, deployment or blockchain verification is claimed.",
     "current_checkpoint": {
-      "status": "in-progress",
-      "unit": "Parent reports full unit tests passed for both independent modules.",
-      "race_native": "Parent gates running; completion not yet attributed here.",
-      "execution_evidence": "Documentation owner performed source/ledger checks only; no runtime gates rerun."
+      "status": "local-gates-passed",
+      "unit_race_vet": "Both independent modules pass; Dia uses public framework pin with GOWORK=off. Final affected native/runtime checks follow the document outbox fix.",
+      "native": "Real PostgreSQL and Mongo suites pass, native Redis passes; both application containers and standalone CLI image pass.",
+      "execution_evidence": "docs/SEPARATION.md, docs/separation-results.json and paired Dia docs/SEPARATION.md",
+      "framework_runtime_commit": "0007d3d81d364b0c63dd8745df3c724f43b620b5"
     }
   },
   "independent_review": {
@@ -12650,11 +12651,11 @@
   "source_repositories": {
     "toolbox": {
       "url": "https://github.com/mejango/blossm-toolbox-go",
-      "revision": "refactor/independent-applications"
+      "revision": "0b43e4b605a817704def65929e770e35decf5170"
     },
     "dia-go": {
       "url": "https://github.com/mejango/dia-go",
-      "revision": "refactor/application-ownership"
+      "revision": "f50a3297d51fbb22e7980c55a21cc19b3db17ec3"
     }
   },
   "source_path_policy": "Unqualified current Go paths belong to Toolbox. dia-go: paths belong to the independent application. Historical JS paths/reference hashes are unchanged. DIA_SOURCE is a documentation-verification input only, never a Go build dependency. Cross-repository main links are provisional until source_repositories revisions are pinned after parent commits.",
@@ -12718,5 +12719,11 @@
     "family_reference_ids_sha256": "2f1ed29af7ba1d690055e4ad84f70ab00405e20f71a48da4a2534ccc46c11e14",
     "package_family_assignment_sha256": "5b935a8a016cf5312d1389b49ee1a2d3e04408ae2e37a2763fdf542ac95721f4",
     "historical_go_assertions_sha256": "232f2676b70f01d2246a864e8ddda2658a6c95505862f6c85c49d521c233d4f9"
+  },
+  "separation_review": {
+    "model": "claude-fable-5-2",
+    "rounds": 2,
+    "status": "bounded finding closed; no remaining blocker in reviewed scope",
+    "report": "docs/reviews/separation-2026-11-12/README.md"
   }
 }

@@ -32,8 +32,8 @@ https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Read
 - [x] Extract reusable security/HTTP boundaries and remove framework dependency on Dia.
 - [x] Move Dia models/services/runtime/routes/tests and its identity-backed example into dia-go.
 - [x] Group related Go packages/models and update all imports, CLI/build/configuration/docs.
-- [ ] Add independent-consumer/dependency-boundary checks and run complete relevant gates.
-- [ ] Prepare paired reviewable branches/PRs with exact evidence and coordinated dependency pin.
+- [x] Add independent-consumer/dependency-boundary checks and run complete relevant gates.
+- [x] Prepare paired reviewable branches/PRs with exact evidence and coordinated dependency pin.
 
 ### Verification refinement: provider error fixture
 
@@ -54,3 +54,11 @@ There is no60s performance contract. Give only this large round-trip fixture a
 bounded3-minute context through a shared fixtureWithBudget helper; keep all small
 fixtures at60s, transaction/cancellation/retry tests and data assertions unchanged.
 Rerun the native suite and retain both earlier failure logs as evidence.
+
+### Separation review result
+
+All required local framework gates pass; Dia independently resolves the public
+framework pin and passes its application gates. Native ownership regression
+closes the Claude finding; its second bounded review reports closure. Exact
+logs/manifests/initial failures are in docs/SEPARATION.md. PR review/approval and
+merge remain separate; no deployment or main update occurred.

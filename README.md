@@ -43,6 +43,6 @@ CLI; application repositories build their own HTTP containers.
 
 See [architecture](docs/ARCHITECTURE.md), [capability inventory](docs/capabilities.md),
 [CLI](cli/README.md), [deployment](deploy/README.md) and
-[publication history](docs/PUBLICATION.md). Historical verification totals describe
+[current verification](docs/SEPARATION.md) and [publication history](docs/PUBLICATION.md). Historical verification totals describe
 the source snapshots recorded there, not unverified later changes. No live
 provider deployment is claimed.

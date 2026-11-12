@@ -1,0 +1,47 @@
+{
+  "runtime_commit": "0007d3d81d364b0c63dd8745df3c724f43b620b5",
+  "native_fixture_commit": "0b43e4b605a817704def65929e770e35decf5170",
+  "go": "1.27.4",
+  "gates": {
+    "unit": {
+      "file": "docs/verification-logs/separation/unit.log.gz",
+      "sha256": "b14af3ddbbccb83f1f9eac3853eec6b0068c45ce485480b331e2ad0fd1c74df5"
+    },
+    "race": {
+      "file": "docs/verification-logs/separation/race.log.gz",
+      "sha256": "0c06bb2d81a538c948509859749d1ea6a21c8ae7b4e9670aaa68834375aca97d"
+    },
+    "native": {
+      "file": "docs/verification-logs/separation/native.log.gz",
+      "sha256": "5d2bce6be45cc046a60904a7ef4936a19f1a3cd5369f839cb418549e133718ae"
+    },
+    "packaging": {
+      "file": "docs/verification-logs/separation/packaging.log.gz",
+      "sha256": "633c5d07c6e504cb647ca5fcf58193b4c18a465034c1dbfce500040e416725d1"
+    },
+    "vulnerabilities": {
+      "file": "docs/verification-logs/separation/vulnerabilities.log.gz",
+      "sha256": "3016e51e4eac0d421674d2128bbbdefb2924b4646e0c14a1ab034977ad73fae5"
+    },
+    "initial-race-failure": {
+      "file": "docs/verification-logs/separation/initial-race-failure.log.gz",
+      "sha256": "de146eb0b9df57b4a685e27450828c3102160e8ffc7abee9caf9a27e2faeff96"
+    },
+    "initial-native-failure": {
+      "file": "docs/verification-logs/separation/initial-native-failure.log.gz",
+      "sha256": "262a86985c7e1a8414e31526776e07d78707450648a3685fbd94941bc5366d6a"
+    },
+    "isolated-native-budget-failure": {
+      "file": "docs/verification-logs/separation/isolated-native-budget-failure.log.gz",
+      "sha256": "86be5735b343d672d95a37716ff2996007a6c5e02708126c6a59f44361e5ce4d"
+    },
+    "container-final": {
+      "file": "docs/verification-logs/separation/container-final.log.gz",
+      "sha256": "d2a67ab2b219c6cae4e16ceebec79668894b1bf35e01f9f60f9fe2154728cbcb"
+    }
+  },
+  "status": "local-verification-passed",
+  "live_environment_verified": false,
+  "final_image": "sha256:69bdc871c4e0ca79c28a223ac3d2ef3c59b2a82c442b99d28aea9d879cd29005",
+  "application_evidence": "https://github.com/mejango/dia-go/blob/refactor/application-ownership/docs/SEPARATION.md"
+}

@@ -1,3 +1,5 @@
+Current independent-framework evidence: [separation verification](SEPARATION.md).
+
 # Independent repository verification
 
 Earlier totals below describe the preserved combined implementation and initial

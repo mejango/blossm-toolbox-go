@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "status": "source-split-verification-pending",
+  "status": "source-split-locally-verified",
   "reference_commit": "372d1c6a3f4699b8714faf15a81dff0b6d8a49a0",
   "historical_snapshot": {
     "repository": "https://github.com/mejango/blossm-toolbox-go",
@@ -10,19 +10,20 @@
   "source_repositories": {
     "toolbox": {
       "url": "https://github.com/mejango/blossm-toolbox-go",
-      "revision": "refactor/independent-applications"
+      "revision": "0b43e4b605a817704def65929e770e35decf5170"
     },
     "dia-go": {
       "url": "https://github.com/mejango/dia-go",
-      "revision": "refactor/application-ownership"
+      "revision": "f50a3297d51fbb22e7980c55a21cc19b3db17ec3"
     }
   },
   "baseline_evidence": "docs/verification-baseline/verification-results.json (pre-remediation753 unit/race and927 native results; overlapping totals, not equivalence counts)",
   "current_checkpoint": {
-    "status": "in-progress",
-    "unit": "Parent reports full unit tests passed for both independent modules.",
-    "race_native": "Parent gates running; completion not yet attributed here.",
-    "execution_evidence": "Documentation owner performed source/ledger checks only; no runtime gates rerun."
+    "status": "local-gates-passed",
+    "unit_race_vet": "Both independent modules pass; Dia uses public framework pin with GOWORK=off. Final affected native/runtime checks follow the document outbox fix.",
+    "native": "Real PostgreSQL and Mongo suites pass, native Redis passes; both application containers and standalone CLI image pass.",
+    "execution_evidence": "docs/SEPARATION.md, docs/separation-results.json and paired Dia docs/SEPARATION.md",
+    "framework_runtime_commit": "0007d3d81d364b0c63dd8745df3c724f43b620b5"
   },
   "review": {
     "model": "claude-fable-5-2",
@@ -34,7 +35,7 @@
     "evidence_scope": "Historical pre-split checkpoint; not current independent-module execution evidence."
   },
   "policy": "All retained identities/reference cases are preserved. Repository-qualified assertion anchors are source evidence only; historical passes do not verify this split.",
-  "required_completion": "Current owning-source anchors are being reconciled across two independent modules. Fresh source-split gates and paired commit pins belong to the parent; pre-split passes are historical only.",
+  "required_completion": "Paired PR review/approval and merge remain separate. No live provider, deployment or blockchain verification is claimed.",
   "package_family_assignment": {
     "@blossm/array-difference": "set-membership",
     "@blossm/array-intersection": "set-membership",
@@ -2587,6 +2588,163 @@
             }
           ],
           "execution": "current source inspected; split execution gates tracked separately"
+        },
+        {
+          "file": "cli/runtime_test.go",
+          "test": "TestSigningCredentialEnvironmentRejected",
+          "line": 250,
+          "body_sha256": "871ed4fcd033b39934791df530058da9261c551000938fb01e3b6f5865db96ef",
+          "assertions": [
+            {
+              "line": 264,
+              "code": "t.Fatal(\"valid signer reference rejected\", err)",
+              "predicate_context": "c.Secrets[required] = c.Secrets[\"API_KEY\"]\n\t\t\t\tp, err := Prepare(c)\n\t\t\t\tif err != nil || p.Status != \"prepared-only\" {\n\t\t\t\t\tt.Fatal(\"valid signer reference rejected\", err)\n\t\t\t\t}"
+            },
+            {
+              "line": 267,
+              "code": "t.Fatal(\"secret rendered as plain env\")",
+              "predicate_context": "t.Fatal(\"valid signer reference rejected\", err)\n\t\t\t\t}\n\t\t\t\tif _, ok := c.RuntimeEnv()[required]; ok {\n\t\t\t\t\tt.Fatal(\"secret rendered as plain env\")\n\t\t\t\t}"
+            },
+            {
+              "line": 274,
+              "code": "t.Fatalf(\"accepted inline %s: %v\", key, err)",
+              "predicate_context": "c.Env = map[string]string{key: value}\n\t\t\t\t\t\tp, err = Prepare(c)\n\t\t\t\t\t\tif err == nil || !strings.Contains(err.Error(), \"secret reference\") {\n\t\t\t\t\t\t\tt.Fatalf(\"accepted inline %s: %v\", key, err)\n\t\t\t\t\t\t}"
+            },
+            {
+              "line": 277,
+              "code": "t.Fatal(\"rejected key leaked into output\")",
+              "predicate_context": "t.Fatalf(\"accepted inline %s: %v\", key, err)\n\t\t\t\t\t\t}\n\t\t\t\t\t\tif len(p.Artifacts) != 0 || strings.Contains(err.Error(), \"sensitive-inline-key\") {\n\t\t\t\t\t\t\tt.Fatal(\"rejected key leaked into output\")\n\t\t\t\t\t\t}"
+            },
+            {
+              "line": 284,
+              "code": "t.Fatal(\"missing required key reference accepted\")",
+              "predicate_context": "c.Env = nil\n\t\t\t\tdelete(c.Secrets, required)\n\t\t\t\tif _, err = Prepare(c); err == nil {\n\t\t\t\t\tt.Fatal(\"missing required key reference accepted\")\n\t\t\t\t}"
+            },
+            {
+              "line": 293,
+              "code": "t.Fatal(\"omitting signer bypassed reference requirement\", key)",
+              "predicate_context": "c := Example(\"gcp\", \"postgres\")\n\t\tc.Env = map[string]string{key: \"sensitive-inline-key\"}\n\t\tif _, err := Prepare(c); err == nil {\n\t\t\tt.Fatal(\"omitting signer bypassed reference requirement\", key)\n\t\t}"
+            }
+          ],
+          "execution": "current source inspected; split execution gates tracked separately"
+        },
+        {
+          "file": "cli/runtime_test.go",
+          "test": "TestMongoPhysicalDatabaseIndependentOfNamespace",
+          "line": 298,
+          "body_sha256": "3cfa16cea41c2605d6a584feab002ab06d54039ab2e74327383da3bd9da6ca02",
+          "assertions": [
+            {
+              "line": 306,
+              "code": "t.Fatal(err)",
+              "predicate_context": "c.Database.Namespace = namespace\n\t\t\tp, err := Prepare(c)\n\t\t\tif err != nil {\n\t\t\t\tt.Fatal(err)\n\t\t\t}"
+            },
+            {
+              "line": 309,
+              "code": "t.Fatal(\"physical database coupled to namespace\", c.RuntimeEnv())",
+              "predicate_context": "t.Fatal(err)\n\t\t\t}\n\t\t\tif c.RuntimeEnv()[\"MONGODB_DATABASE\"] != \"shared_app\" || c.RuntimeEnv()[\"DATABASE_NAMESPACE\"] != namespace {\n\t\t\t\tt.Fatal(\"physical database coupled to namespace\", c.RuntimeEnv())\n\t\t\t}"
+            },
+            {
+              "line": 317,
+              "code": "t.Fatal(err)",
+              "predicate_context": "}\n\t\t\tvar root map[string]any\n\t\t\tif err = json.Unmarshal(p.Artifacts[artifact], &root); err != nil {\n\t\t\t\tt.Fatal(err)\n\t\t\t}"
+            },
+            {
+              "line": 335,
+              "code": "t.Fatal(\"incorrect prepared database environment\", env)",
+              "predicate_context": "}\n\t\t\t}\n\t\t\tif env[\"MONGODB_DATABASE\"] != \"shared_app\" || env[\"DATABASE_NAMESPACE\"] != namespace {\n\t\t\t\tt.Fatal(\"incorrect prepared database environment\", env)\n\t\t\t}"
+            },
+            {
+              "line": 342,
+              "code": "t.Fatal(\"unsafe mongo physical name\", name)",
+              "predicate_context": "c := Example(provider, \"mongo\")\n\t\t\tc.Database.Name = name\n\t\t\tif _, err := Prepare(c); err == nil {\n\t\t\t\tt.Fatal(\"unsafe mongo physical name\", name)\n\t\t\t}"
+            },
+            {
+              "line": 349,
+              "code": "t.Fatal(\"valid backend physical name rejected\", name, err)",
+              "predicate_context": "c := Example(provider, \"mongo\")\n\t\t\tc.Database.Name = name\n\t\t\tif _, err := Prepare(c); err != nil {\n\t\t\t\tt.Fatal(\"valid backend physical name rejected\", name, err)\n\t\t\t}"
+            },
+            {
+              "line": 352,
+              "code": "t.Fatal(\"physical name normalized\")",
+              "predicate_context": "t.Fatal(\"valid backend physical name rejected\", name, err)\n\t\t\t}\n\t\t\tif c.RuntimeEnv()[\"MONGODB_DATABASE\"] != name {\n\t\t\t\tt.Fatal(\"physical name normalized\")\n\t\t\t}"
+            },
+            {
+              "line": 357,
+              "code": "t.Fatal(err)",
+              "predicate_context": "}\n\t\tc := Example(provider, \"postgres\")\n\t\tif _, err := Prepare(c); err != nil {\n\t\t\tt.Fatal(err)\n\t\t}"
+            },
+            {
+              "line": 360,
+              "code": "t.Fatal(\"postgres emitted mongo database\")",
+              "predicate_context": "t.Fatal(err)\n\t\t}\n\t\tif _, ok := c.RuntimeEnv()[\"MONGODB_DATABASE\"]; ok {\n\t\t\tt.Fatal(\"postgres emitted mongo database\")\n\t\t}"
+            },
+            {
+              "line": 364,
+              "code": "t.Fatal(\"postgres accepted mongo-only name\")",
+              "predicate_context": "}\n\t\tc.Database.Name = \"unexpected\"\n\t\tif _, err := Prepare(c); err == nil {\n\t\t\tt.Fatal(\"postgres accepted mongo-only name\")\n\t\t}"
+            }
+          ],
+          "execution": "current source inspected; split execution gates tracked separately"
+        },
+        {
+          "file": "dia-go:deployment/config_test.go",
+          "test": "TestPairedApplicationsShareIdentityAndIsolatePublications",
+          "line": 161,
+          "body_sha256": "d8548e6cf0ad4e8562237fb93be337747736b958e5eb7927d82af73524e65009",
+          "assertions": [
+            {
+              "line": 168,
+              "code": "t.Fatal(\"applications do not share database endpoint reference\")",
+              "predicate_context": "idEnv, _ := preparedSettings(t, identity)\n\t\t\tdocEnv, _ := preparedSettings(t, document)\n\t\t\tif identity.Database.Driver != document.Database.Driver || identity.Database.Secret != document.Database.Secret {\n\t\t\t\tt.Fatal(\"applications do not share database endpoint reference\")\n\t\t\t}"
+            },
+            {
+              "line": 171,
+              "code": "t.Fatal(\"document cannot address the identity prefix\", idEnv, docEnv)",
+              "predicate_context": "t.Fatal(\"applications do not share database endpoint reference\")\n\t\t\t}\n\t\t\tif idEnv[\"DATABASE_NAMESPACE\"] != \"dia_identity\" || docEnv[\"IDENTITY_DATABASE_NAMESPACE\"] != idEnv[\"DATABASE_NAMESPACE\"] {\n\t\t\t\tt.Fatal(\"document cannot address the identity prefix\", idEnv, docEnv)\n\t\t\t}"
+            },
+            {
+              "line": 174,
+              "code": "t.Fatal(\"document data is not isolated\")",
+              "predicate_context": "t.Fatal(\"document cannot address the identity prefix\", idEnv, docEnv)\n\t\t\t}\n\t\t\tif docEnv[\"DATABASE_NAMESPACE\"] != \"documents\" || docEnv[\"DATABASE_NAMESPACE\"] == idEnv[\"DATABASE_NAMESPACE\"] {\n\t\t\t\tt.Fatal(\"document data is not isolated\")\n\t\t\t}"
+            },
+            {
+              "line": 178,
+              "code": "t.Fatal(\"identity lookup addresses a different physical Mongo database\", idEnv, docEnv)",
+              "predicate_context": "}\n\t\t\tif identity.Database.Driver == \"mongo\" {\n\t\t\t\tif identity.Database.Name != \"diaapp\" || document.Database.Name != identity.Database.Name || idEnv[\"MONGODB_DATABASE\"] != \"diaapp\" || docEnv[\"MONGODB_DATABASE\"] != idEnv[\"MONGODB_DATABASE\"] {\n\t\t\t\t\tt.Fatal(\"identity lookup addresses a different physical Mongo database\", idEnv, docEnv)\n\t\t\t\t}"
+            },
+            {
+              "line": 182,
+              "code": "t.Fatal(\"paired signing trust differs\")",
+              "predicate_context": "}\n\t\t\t}\n\t\t\tif idEnv[\"NETWORK\"] != docEnv[\"NETWORK\"] || identity.Signing.Issuer != document.Signing.Issuer || identity.Signing.Audience != document.Signing.Audience {\n\t\t\t\tt.Fatal(\"paired signing trust differs\")\n\t\t\t}"
+            },
+            {
+              "line": 186,
+              "code": "t.Fatal(\"paired trust/crypto reference differs\", key)",
+              "predicate_context": "}\n\t\t\tfor _, key := range []string{\"JWT_PRIVATE_KEY\", \"DIA_HMAC_KEY\", \"DIA_ENCRYPTION_KEY\"} {\n\t\t\t\tif identity.Secrets[key] != document.Secrets[key] {\n\t\t\t\t\tt.Fatal(\"paired trust/crypto reference differs\", key)\n\t\t\t\t}"
+            },
+            {
+              "line": 190,
+              "code": "t.Fatal(\"unrelated event streams share publication topic\")",
+              "predicate_context": "}\n\t\t\t}\n\t\t\tif idEnv[\"PUBLICATION_TOPIC\"] == docEnv[\"PUBLICATION_TOPIC\"] {\n\t\t\t\tt.Fatal(\"unrelated event streams share publication topic\")\n\t\t\t}"
+            },
+            {
+              "line": 194,
+              "code": "t.Fatal(\"unrelated consumers compete on one subscription\")",
+              "predicate_context": "}\n\t\t\tif identity.Provider == \"gcp\" {\n\t\t\t\tif idEnv[\"PUBLICATION_SUBSCRIPTION\"] == docEnv[\"PUBLICATION_SUBSCRIPTION\"] {\n\t\t\t\t\tt.Fatal(\"unrelated consumers compete on one subscription\")\n\t\t\t\t}"
+            },
+            {
+              "line": 198,
+              "code": "t.Fatal(\"unrelated consumers compete on one queue\")",
+              "predicate_context": "}\n\t\t\t} else {\n\t\t\t\tif idEnv[\"PUBLICATION_QUEUE_URL\"] == docEnv[\"PUBLICATION_QUEUE_URL\"] || identity.Publication.QueueARN == document.Publication.QueueARN {\n\t\t\t\t\tt.Fatal(\"unrelated consumers compete on one queue\")\n\t\t\t\t}"
+            },
+            {
+              "line": 201,
+              "code": "t.Fatal(\"delivery queue overlaps publication consumers\")",
+              "predicate_context": "t.Fatal(\"unrelated consumers compete on one queue\")\n\t\t\t\t}\n\t\t\t\tif docEnv[\"DELIVERY_QUEUE_URL\"] == docEnv[\"PUBLICATION_QUEUE_URL\"] || docEnv[\"DELIVERY_QUEUE_URL\"] == idEnv[\"PUBLICATION_QUEUE_URL\"] {\n\t\t\t\t\tt.Fatal(\"delivery queue overlaps publication consumers\")\n\t\t\t\t}"
+            }
+          ],
+          "execution": "current source inspected; split execution gates tracked separately"
         }
       ],
       "unresolved_go_selectors": [],
@@ -2723,7 +2881,7 @@
         "packages/cli/utils/merge_cli_template/test/identity.js:117",
         "packages/cli/utils/merge_cli_template/test/identity.js:145"
       ],
-      "assertion_count": 99,
+      "assertion_count": 125,
       "coverage_boundary": "Current repository-qualified source anchors are inspected, not execution evidence. Historical notes and assertion hashes describe the pre-split snapshot. All original JS cases remain indexed; family associations do not prove one-to-one parity."
     },
     {
@@ -6897,31 +7055,31 @@
         {
           "file": "storage/mongo/integration_test.go",
           "test": "TestNativeRollbackAndConstraints",
-          "line": 151,
+          "line": 156,
           "body_sha256": "8b0ff75cce7796b699fef82d2eae2781c83dca25601693468478b2e8a70c7d48",
           "assertions": [
             {
-              "line": 163,
+              "line": 168,
               "code": "t.Fatal(err)",
               "predicate_context": "return sentinel\n\t})\n\tif !errors.Is(err, sentinel) {\n\t\tt.Fatal(err)\n\t}"
             },
             {
-              "line": 169,
+              "line": 174,
               "code": "t.Fatal(n)",
               "predicate_context": "n, err := r.Count(ctx, root)\n\t\tmust(t, err)\n\t\tif n != 0 {\n\t\t\tt.Fatal(n)\n\t\t}"
             },
             {
-              "line": 174,
+              "line": 179,
               "code": "t.Fatal(p)",
               "predicate_context": "p, err := r.Pending(ctx, 10)\n\t\tmust(t, err)\n\t\tif len(p) != 0 {\n\t\t\tt.Fatal(p)\n\t\t}"
             },
             {
-              "line": 193,
+              "line": 198,
               "code": "t.Fatal(err)",
               "predicate_context": "}\n\t\t\terr := b.Update(ctx, func(tx eventstore.Tx) error { return appendRaw(ctx, tx, other) })\n\t\t\tif !errors.Is(err, eventstore.ErrConflict) {\n\t\t\t\tt.Fatal(err)\n\t\t\t}"
             },
             {
-              "line": 225,
+              "line": 230,
               "code": "t.Fatal(err)",
               "predicate_context": "return tx.PutBlock(ctx, v)\n\t\t\t})\n\t\t\tif !errors.Is(err, eventstore.ErrConflict) {\n\t\t\t\tt.Fatal(err)\n\t\t\t}"
             }
@@ -6931,26 +7089,26 @@
         {
           "file": "storage/mongo/integration_test.go",
           "test": "TestNativeConcurrencyAndSnapshot",
-          "line": 231,
+          "line": 236,
           "body_sha256": "da1bdaf99fd29d1ce5db2b9ea25318150b61c47fb7c09e3eaa13bb4393582d6d",
           "assertions": [
             {
-              "line": 271,
+              "line": 276,
               "code": "t.Fatal(n)",
               "predicate_context": "n, err := r.Count(ctx, root)\n\t\t\tmust(t, err)\n\t\t\tif n != 12 {\n\t\t\t\tt.Fatal(n)\n\t\t\t}"
             },
             {
-              "line": 276,
+              "line": 281,
               "code": "t.Fatal(e.Number, seen)",
               "predicate_context": "seen := int64(0)\n\t\t\tmust(t, r.Events(ctx, root, -1, func(e eventstore.Event) error {\n\t\t\t\tif e.Number != seen {\n\t\t\t\t\tt.Fatal(e.Number, seen)\n\t\t\t\t}"
             },
             {
-              "line": 282,
+              "line": 287,
               "code": "t.Fatal(seen)",
               "predicate_context": "return nil\n\t\t\t}))\n\t\t\tif seen != 12 {\n\t\t\t\tt.Fatal(seen)\n\t\t\t}"
             },
             {
-              "line": 289,
+              "line": 294,
               "code": "t.Fatal(\"view lost snapshot\", n)",
               "predicate_context": "n, err := r.Count(ctx, roots[0])\n\t\tmust(t, err)\n\t\tif n != 12 {\n\t\t\tt.Fatal(\"view lost snapshot\", n)\n\t\t}"
             }
@@ -7526,21 +7684,21 @@
         {
           "file": "storage/mongo/integration_test.go",
           "test": "TestNativeViewDoesNotReplayStreams",
-          "line": 531,
+          "line": 536,
           "body_sha256": "9bf4d4a4823d8985c5445e78fd3ea3c382c2f8125810bb3be2076efdb4a8f471",
           "assertions": [
             {
-              "line": 553,
+              "line": 558,
               "code": "t.Fatal(\"consumer callback replayed\", calls, delivered, err)",
               "predicate_context": "return r.Events(ctx, root, -1, func(eventstore.Event) error { delivered++; return stop })\n\t\t})\n\t\tif !errors.Is(err, stop) || calls != 1 || delivered != 1 {\n\t\t\tt.Fatal(\"consumer callback replayed\", calls, delivered, err)\n\t\t}"
             },
             {
-              "line": 563,
+              "line": 568,
               "code": "t.Fatalf(\"row repeated: number%d delivered%d\", e.Number, delivered)",
               "predicate_context": "calls++\n\t\t\treturn r.Events(ctx, root, -1, func(e eventstore.Event) error {\n\t\t\t\tif e.Number != int64(delivered) {\n\t\t\t\t\tt.Fatalf(\"row repeated: number%d delivered%d\", e.Number, delivered)\n\t\t\t\t}"
             },
             {
-              "line": 570,
+              "line": 575,
               "code": "t.Fatal(\"known abort replayed owned stream\", calls, delivered, err)",
               "predicate_context": "})\n\t\t})\n\t\tif !hasLabel(err, \"TransientTransactionError\") || calls != 1 || delivered != 128 {\n\t\t\tt.Fatal(\"known abort replayed owned stream\", calls, delivered, err)\n\t\t}"
             }
@@ -8061,41 +8219,41 @@
         {
           "file": "storage/mongo/body_integration_test.go",
           "test": "TestNativeLargeTailBlockPreservesBytes",
-          "line": 27,
-          "body_sha256": "b9da9b143a21ec1ce870a22cb688a86872a8eb529a45588deca3f228794c47b1",
+          "line": 28,
+          "body_sha256": "a82a01a3c3691f01ee1b2aab38d54408391c7964079de45a287c156ed67f3bcc",
           "assertions": [
             {
-              "line": 47,
+              "line": 50,
               "code": "t.Fatal(\"fixture did not exceed BSON limit\", len(block.Events), len(wire))",
               "predicate_context": "wire, err := json.Marshal(block)\n\tmust(t, err)\n\tif len(block.Events) <= 16<<20 || len(wire) <= 16<<20 {\n\t\tt.Fatal(\"fixture did not exceed BSON limit\", len(block.Events), len(wire))\n\t}"
             },
             {
-              "line": 59,
+              "line": 62,
               "code": "t.Fatal(\"large block bytes changed\")",
               "predicate_context": "return err\n\t\t}\n\t\tif !bytes.Equal(encoded, wire) {\n\t\t\tt.Fatal(\"large block bytes changed\")\n\t\t}"
             },
             {
-              "line": 68,
+              "line": 71,
               "code": "t.Fatal(\"block hash changed\")",
               "predicate_context": "return err\n\t\t}\n\t\tif actual != hash {\n\t\t\tt.Fatal(\"block hash changed\")\n\t\t}"
             },
             {
-              "line": 75,
+              "line": 78,
               "code": "t.Fatal(\"tail lost or state grew\", len(snapshot.Events), string(snapshot.State))",
               "predicate_context": "return err\n\t\t}\n\t\tif len(snapshot.Events) <= 16<<20 || string(snapshot.State) != `{\"count\":100}` {\n\t\t\tt.Fatal(\"tail lost or state grew\", len(snapshot.Events), string(snapshot.State))\n\t\t}"
             },
             {
-              "line": 82,
+              "line": 85,
               "code": "t.Fatal(aggregate.Version, string(aggregate.State))",
               "predicate_context": "aggregate, err := s.Aggregate(ctx, root)\n\tmust(t, err)\n\tif aggregate.Version != 99 || string(aggregate.State) != `{\"count\":100}` {\n\t\tt.Fatal(aggregate.Version, string(aggregate.State))\n\t}"
             },
             {
-              "line": 87,
+              "line": 90,
               "code": "t.Fatal(\"oversized body remained inline\")",
               "predicate_context": "var parent document\n\tmust(t, b.collection(\"blocks\").FindOne(ctx, id(block.Number)).Decode(&parent))\n\tif parent.Blob == nil || len(parent.Body) != 0 {\n\t\tt.Fatal(\"oversized body remained inline\")\n\t}"
             },
             {
-              "line": 92,
+              "line": 95,
               "code": "t.Fatal(\"chunk count mismatch\", count, parent.Blob.Parts)",
               "predicate_context": "count, err := b.collection(\"payload_chunks\").CountDocuments(ctx, bson.D{{Key: \"blob\", Value: parent.Blob.ID}})\n\tmust(t, err)\n\tif count != parent.Blob.Parts {\n\t\tt.Fatal(\"chunk count mismatch\", count, parent.Blob.Parts)\n\t}"
             }
@@ -8105,26 +8263,26 @@
         {
           "file": "storage/mongo/body_integration_test.go",
           "test": "TestNativeLargeStateCandidatesRemainComplete",
-          "line": 96,
+          "line": 99,
           "body_sha256": "257b190df1b883d19f50830047e0b1fe09a8ee99c8427074fe807c6d425e57dd",
           "assertions": [
             {
-              "line": 120,
+              "line": 123,
               "code": "t.Fatal(\"oversized index terms were not bounded\")",
               "predicate_context": "}\n\tmust(t, b.collection(\"snapshot_heads\").FindOne(ctx, id(root.Key())).Decode(&head))\n\tif !head.Unindexed || len(head.Terms) != 0 {\n\t\tt.Fatal(\"oversized index terms were not bounded\")\n\t}"
             },
             {
-              "line": 126,
+              "line": 129,
               "code": "t.Fatal(\"unindexed clean snapshot omitted or changed\")",
               "predicate_context": "matches, err := s.Query(ctx, root.Network, root.Service, root.Domain, []eventstore.Predicate{{Path: \"tag\", Value: json.RawMessage(`\"yes\"`)}})\n\tmust(t, err)\n\tif len(matches) != 1 || !bytes.Equal(matches[0].State, state) {\n\t\tt.Fatal(\"unindexed clean snapshot omitted or changed\")\n\t}"
             },
             {
-              "line": 131,
+              "line": 134,
               "code": "t.Fatal(\"conservative candidate escaped final Matches\")",
               "predicate_context": "matches, err = s.Query(ctx, root.Network, root.Service, root.Domain, []eventstore.Predicate{{Path: \"tag\", Value: json.RawMessage(`\"no\"`)}})\n\tmust(t, err)\n\tif len(matches) != 0 {\n\t\tt.Fatal(\"conservative candidate escaped final Matches\")\n\t}"
             },
             {
-              "line": 138,
+              "line": 141,
               "code": "t.Fatal(\"oversized query predicate lost candidate\", roots)",
               "predicate_context": "must(t, b.View(ctx, func(r eventstore.Reader) error {\n\t\troots, err := r.(eventstore.CandidateReader).Candidates(ctx, root.Network, root.Service, root.Domain, []eventstore.Predicate{{Path: \"data\", Value: value}})\n\t\tif len(roots) != 1 || roots[0] != root {\n\t\t\tt.Fatal(\"oversized query predicate lost candidate\", roots)\n\t\t}"
             }
@@ -8134,51 +8292,51 @@
         {
           "file": "storage/mongo/body_integration_test.go",
           "test": "TestNativeChunkReplacementDeletionAndRollback",
-          "line": 157,
+          "line": 160,
           "body_sha256": "80f0652cccc8486bfa1cc2fe6fe4557f42a3407ec7855ee5f9b429d518b82d48",
           "assertions": [
             {
-              "line": 181,
+              "line": 184,
               "code": "t.Fatal(\"fixtures did not use chunks\")",
               "predicate_context": "projection := stored(t, b, ctx, \"projections\", p.ID)\n\teventDoc := stored(t, b, ctx, \"events\", event.Input.Key)\n\tif publication.Blob == nil || projection.Blob == nil || eventDoc.Blob == nil {\n\t\tt.Fatal(\"fixtures did not use chunks\")\n\t}"
             },
             {
-              "line": 196,
+              "line": 199,
               "code": "t.Fatal(n)",
               "predicate_context": "return err\n\t\t}\n\t\tif n != 1 {\n\t\t\tt.Fatal(n)\n\t\t}"
             },
             {
-              "line": 200,
+              "line": 203,
               "code": "t.Fatal(\"chunked projection listing changed\")",
               "predicate_context": "}\n\t\trows, err := r.(*reader).Projections(ctx, root.Network, root.Service, root.Domain, \"\", 10)\n\t\tif len(rows) != 1 || !bytes.Equal(rows[0].Body, body) {\n\t\t\tt.Fatal(\"chunked projection listing changed\")\n\t\t}"
             },
             {
-              "line": 219,
+              "line": 222,
               "code": "t.Fatal(\"rollback lost chunks\", err)",
               "predicate_context": "return stop\n\t})\n\tif !errors.Is(err, stop) || chunkCount(t, b, ctx, bson.D{}) != before {\n\t\tt.Fatal(\"rollback lost chunks\", err)\n\t}"
             },
             {
-              "line": 225,
+              "line": 228,
               "code": "t.Fatal(\"pending chunk read changed\")",
               "predicate_context": "must(t, b.View(ctx, func(r eventstore.Reader) error {\n\t\tpending, err := r.Pending(ctx, 10)\n\t\tif len(pending) != 1 || pending[0].Attempts != 1 || !bytes.Equal(pending[0].Event.Input.Payload, body) {\n\t\t\tt.Fatal(\"pending chunk read changed\")\n\t\t}"
             },
             {
-              "line": 233,
+              "line": 236,
               "code": "t.Fatal(\"old projection chunks leaked\")",
               "predicate_context": "must(t, b.Update(ctx, func(tx eventstore.Tx) error { _, err := tx.PutProjection(ctx, p); return err }))\n\tnewer := stored(t, b, ctx, \"projections\", p.ID)\n\tif newer.Blob == nil || newer.Blob.ID == projection.Blob.ID || chunkCount(t, b, ctx, blobFilter(projection)) != 0 {\n\t\tt.Fatal(\"old projection chunks leaked\")\n\t}"
             },
             {
-              "line": 244,
+              "line": 247,
               "code": "t.Fatal(\"rollback replacement lost previous chunks\", err)",
               "predicate_context": "return stop\n\t})\n\tif !errors.Is(err, stop) || chunkCount(t, b, ctx, blobFilter(newer)) != newer.Blob.Parts {\n\t\tt.Fatal(\"rollback replacement lost previous chunks\", err)\n\t}"
             },
             {
-              "line": 255,
+              "line": 258,
               "code": "t.Fatal(\"cleanup leaked or deleted another record's chunks\")",
               "predicate_context": "return tx.DeletePublication(ctx, event.Hash)\n\t}))\n\tif chunkCount(t, b, ctx, blobFilter(newer)) != 0 || chunkCount(t, b, ctx, blobFilter(publication)) != 0 || chunkCount(t, b, ctx, blobFilter(eventDoc)) != eventDoc.Blob.Parts {\n\t\tt.Fatal(\"cleanup leaked or deleted another record's chunks\")\n\t}"
             },
             {
-              "line": 259,
+              "line": 262,
               "code": "t.Fatal(\"large-to-inline replacement retained blob\")",
               "predicate_context": "}\n\tsmall := stored(t, b, ctx, \"projections\", p.ID)\n\tif small.Blob != nil || len(small.Body) == 0 {\n\t\tt.Fatal(\"large-to-inline replacement retained blob\")\n\t}"
             }
@@ -8188,21 +8346,21 @@
         {
           "file": "storage/mongo/body_integration_test.go",
           "test": "TestNativeChunkInsertRollbackAndCorruption",
-          "line": 263,
+          "line": 266,
           "body_sha256": "d12dce393382627a2c664fe3da721b58125578d8017c3fa186a81b7eed0b7ae7",
           "assertions": [
             {
-              "line": 274,
+              "line": 277,
               "code": "t.Fatal(\"aborted chunks leaked\", err)",
               "predicate_context": "return stop\n\t})\n\tif !errors.Is(err, stop) || chunkCount(t, b, ctx, bson.D{}) != 0 {\n\t\tt.Fatal(\"aborted chunks leaked\", err)\n\t}"
             },
             {
-              "line": 282,
+              "line": 285,
               "code": "t.Fatal(\"unique failure leaked chunks\", err)",
               "predicate_context": "duplicate.Number = 1\n\terr = b.Update(ctx, func(tx eventstore.Tx) error { return tx.PutBlock(ctx, duplicate) })\n\tif !errors.Is(err, eventstore.ErrConflict) || chunkCount(t, b, ctx, bson.D{}) != before {\n\t\tt.Fatal(\"unique failure leaked chunks\", err)\n\t}"
             },
             {
-              "line": 320,
+              "line": 323,
               "code": "t.Fatal(\"corrupt body accepted\", kind, err)",
               "predicate_context": "must(t, err)\n\t\t\terr = b.View(ctx, func(r eventstore.Reader) error { _, err := r.LastBlock(ctx); return err })\n\t\t\tif !errors.Is(err, ErrCorrupt) {\n\t\t\t\tt.Fatal(\"corrupt body accepted\", kind, err)\n\t\t\t}"
             }
@@ -9051,6 +9209,90 @@
             }
           ],
           "execution": "current source inspected; split execution gates tracked separately"
+        },
+        {
+          "file": "dia-go:cmd/document/publication_ownership_native_test.go",
+          "test": "TestPublicationOwnershipNative",
+          "line": 36,
+          "body_sha256": "647d1385fb856c8bb7844a6608c0c0c2a2d63758faf03135670dc833e64a1127",
+          "assertions": [
+            {
+              "line": 50,
+              "code": "t.Fatal(\"POSTGRES_URL required\")",
+              "predicate_context": "if driver == \"postgres\" {\n\t\t\t\t\t\turi := os.Getenv(\"POSTGRES_URL\")\n\t\t\t\t\t\tif uri == \"\" {\n\t\t\t\t\t\t\tt.Fatal(\"POSTGRES_URL required\")\n\t\t\t\t\t\t}"
+            },
+            {
+              "line": 56,
+              "code": "t.Fatal(\"MONGODB_URI required\")",
+              "predicate_context": "} else {\n\t\t\t\t\t\turi := os.Getenv(\"MONGODB_URI\")\n\t\t\t\t\t\tif uri == \"\" {\n\t\t\t\t\t\t\tt.Fatal(\"MONGODB_URI required\")\n\t\t\t\t\t\t}"
+            },
+            {
+              "line": 61,
+              "code": "t.Fatal(err)",
+              "predicate_context": "backend, err = mongoStore.Open(ctx, mongoStore.Config{URI: uri, Database: \"blossm_test\", Namespace: namespace + suffix})\n\t\t\t\t\t}\n\t\t\t\t\tif err != nil {\n\t\t\t\t\t\tt.Fatal(err)\n\t\t\t\t\t}"
+            },
+            {
+              "line": 67,
+              "code": "t.Error(err)",
+              "predicate_context": "closeCtx, stop := context.WithTimeout(context.Background(), 10*time.Second)\n\t\t\t\t\t\tdefer stop()\n\t\t\t\t\t\tif err := backend.Close(closeCtx); err != nil {\n\t\t\t\t\t\t\tt.Error(err)\n\t\t\t\t\t\t}"
+            },
+            {
+              "line": 83,
+              "code": "t.Fatal(err)",
+              "predicate_context": "Transaction: eventstore.Transaction{ID: \"fixture\", Issued: \"2026-11-12T00:00:00Z\"},\n\t\t\t\t\t}})\n\t\t\t\t\tif err != nil {\n\t\t\t\t\t\tt.Fatal(err)\n\t\t\t\t\t}"
+            },
+            {
+              "line": 86,
+              "code": "t.Fatal(\"event not committed\", receipt)",
+              "predicate_context": "t.Fatal(err)\n\t\t\t\t\t}\n\t\t\t\t\tif len(receipt) != 1 || receipt[0].Outcome != eventstore.Committed {\n\t\t\t\t\t\tt.Fatal(\"event not committed\", receipt)\n\t\t\t\t\t}"
+            },
+            {
+              "line": 98,
+              "code": "t.Fatal(err)",
+              "predicate_context": "return err\n\t\t\t\t\t})\n\t\t\t\t\tif err != nil {\n\t\t\t\t\t\tt.Fatal(err)\n\t\t\t\t\t}"
+            },
+            {
+              "line": 106,
+              "code": "t.Fatal(\"both durable outboxes must start populated\")",
+              "predicate_context": "appendEvent(documents, \"notes\", \"document\")\n\t\t\t\tidentityBefore, documentsBefore := pending(identity), pending(documents)\n\t\t\t\tif len(identityBefore) != 1 || len(documentsBefore) != 1 {\n\t\t\t\t\tt.Fatal(\"both durable outboxes must start populated\")\n\t\t\t\t}"
+            },
+            {
+              "line": 111,
+              "code": "t.Fatal(err)",
+              "predicate_context": "var remote publicationCapture\n\t\t\t\tfor _, owner := range publicationOwners(mode, documents, identity, &remote) {\n\t\t\t\t\tif err := owner.store.Deliver(ctx, owner.publisher, 10); err != nil {\n\t\t\t\t\t\tt.Fatal(err)\n\t\t\t\t\t}"
+            },
+            {
+              "line": 115,
+              "code": "t.Fatal(\"remote publisher must receive only the exact document notice\", remote)",
+              "predicate_context": "}\n\t\t\t\t}\n\t\t\t\tif !reflect.DeepEqual([]eventstore.Publication(remote), documentsBefore) {\n\t\t\t\t\tt.Fatal(\"remote publisher must receive only the exact document notice\", remote)\n\t\t\t\t}"
+            },
+            {
+              "line": 118,
+              "code": "t.Fatal(\"acknowledged document notice was not deleted\")",
+              "predicate_context": "t.Fatal(\"remote publisher must receive only the exact document notice\", remote)\n\t\t\t\t}\n\t\t\t\tif len(pending(documents)) != 0 {\n\t\t\t\t\tt.Fatal(\"acknowledged document notice was not deleted\")\n\t\t\t\t}"
+            },
+            {
+              "line": 121,
+              "code": "t.Fatal(\"document runtime mutated or drained the identity wallet notice\")",
+              "predicate_context": "t.Fatal(\"acknowledged document notice was not deleted\")\n\t\t\t\t}\n\t\t\t\tif !reflect.DeepEqual(pending(identity), identityBefore) {\n\t\t\t\t\tt.Fatal(\"document runtime mutated or drained the identity wallet notice\")\n\t\t\t\t}"
+            },
+            {
+              "line": 125,
+              "code": "t.Fatal(err)",
+              "predicate_context": "}\n\t\t\t\tvar identityPublisher publicationCapture\n\t\t\t\tif err := identity.Deliver(ctx, &identityPublisher, 10); err != nil {\n\t\t\t\t\tt.Fatal(err)\n\t\t\t\t}"
+            },
+            {
+              "line": 128,
+              "code": "t.Fatal(\"identity owner did not recover the original wallet notice\")",
+              "predicate_context": "t.Fatal(err)\n\t\t\t\t}\n\t\t\t\tif !reflect.DeepEqual([]eventstore.Publication(identityPublisher), identityBefore) {\n\t\t\t\t\tt.Fatal(\"identity owner did not recover the original wallet notice\")\n\t\t\t\t}"
+            },
+            {
+              "line": 131,
+              "code": "t.Fatal(\"identity owner acknowledgment did not delete its notice\")",
+              "predicate_context": "t.Fatal(\"identity owner did not recover the original wallet notice\")\n\t\t\t\t}\n\t\t\t\tif len(pending(identity)) != 0 {\n\t\t\t\t\tt.Fatal(\"identity owner acknowledgment did not delete its notice\")\n\t\t\t\t}"
+            }
+          ],
+          "execution": "current source inspected; split execution gates tracked separately"
         }
       ],
       "unresolved_go_selectors": [],
@@ -9113,7 +9355,7 @@
         "packages/procedures/event_stores/mongodb/publish_pending/test/index.js:116",
         "packages/procedures/event_stores/mongodb/publish_pending/test/index.js:141"
       ],
-      "assertion_count": 112,
+      "assertion_count": 127,
       "coverage_boundary": "Current repository-qualified source anchors are inspected, not execution evidence. Historical notes and assertion hashes describe the pre-split snapshot. All original JS cases remain indexed; family associations do not prove one-to-one parity."
     },
     {
@@ -10019,61 +10261,61 @@
         {
           "file": "storage/mongo/integration_test.go",
           "test": "TestNativeEmptyAndRoundtrip",
-          "line": 74,
+          "line": 79,
           "body_sha256": "2eda4f1e8411e6f3cd6018e2cd4a1c6257edf2433fa45647197b8429fa2a50fb",
           "assertions": [
             {
-              "line": 82,
+              "line": 87,
               "code": "t.Fatal(n)",
               "predicate_context": "n, err := r.Count(ctx, root)\n\t\tmust(t, err)\n\t\tif n != 0 {\n\t\t\tt.Fatal(n)\n\t\t}"
             },
             {
-              "line": 86,
+              "line": 91,
               "code": "t.Fatal(err)",
               "predicate_context": "}\n\t\t_, err = r.Find(ctx, \"missing\")\n\t\tif !errors.Is(err, eventstore.ErrNotFound) {\n\t\t\tt.Fatal(err)\n\t\t}"
             },
             {
-              "line": 90,
+              "line": 95,
               "code": "t.Fatal(err)",
               "predicate_context": "}\n\t\t_, err = r.Snapshot(ctx, root)\n\t\tif !errors.Is(err, eventstore.ErrNotFound) {\n\t\t\tt.Fatal(err)\n\t\t}"
             },
             {
-              "line": 94,
+              "line": 99,
               "code": "t.Fatal(err)",
               "predicate_context": "}\n\t\t_, err = r.LastBlock(ctx)\n\t\tif !errors.Is(err, eventstore.ErrNotFound) {\n\t\t\tt.Fatal(err)\n\t\t}"
             },
             {
-              "line": 98,
+              "line": 103,
               "code": "t.Fatal(err)",
               "predicate_context": "}\n\t\t_, err = r.Projection(ctx, \"missing\")\n\t\tif !errors.Is(err, eventstore.ErrNotFound) {\n\t\t\tt.Fatal(err)\n\t\t}"
             },
             {
-              "line": 102,
+              "line": 107,
               "code": "t.Fatal(\"unbounded pending allowed\")",
               "predicate_context": "}\n\t\t_, err = r.Pending(ctx, 0)\n\t\tif err == nil {\n\t\t\tt.Fatal(\"unbounded pending allowed\")\n\t\t}"
             },
             {
-              "line": 123,
+              "line": 128,
               "code": "t.Fatalf(\"event changed: %#v\", got)",
               "predicate_context": "got, err := r.Find(ctx, e.Input.Key)\n\t\tmust(t, err)\n\t\tif !reflect.DeepEqual(got, e) {\n\t\t\tt.Fatalf(\"event changed: %#v\", got)\n\t\t}"
             },
             {
-              "line": 129,
+              "line": 134,
               "code": "t.Fatal(\"snapshot changed\")",
               "predicate_context": "s, err := r.Snapshot(ctx, root)\n\t\tmust(t, err)\n\t\tif !reflect.DeepEqual(s, snap) {\n\t\t\tt.Fatal(\"snapshot changed\")\n\t\t}"
             },
             {
-              "line": 134,
+              "line": 139,
               "code": "t.Fatal(\"block binary changed\")",
               "predicate_context": "v, err := r.LastBlock(ctx)\n\t\tmust(t, err)\n\t\tif !reflect.DeepEqual(v, block) {\n\t\t\tt.Fatal(\"block binary changed\")\n\t\t}"
             },
             {
-              "line": 139,
+              "line": 144,
               "code": "t.Fatal(\"escaped reader usable\")",
               "predicate_context": "return nil\n\t}))\n\tif _, err := escaped.Count(ctx, root); err == nil {\n\t\tt.Fatal(\"escaped reader usable\")\n\t}"
             },
             {
-              "line": 147,
+              "line": 152,
               "code": "t.Fatal(\"event JSON not stored unchanged as BSON binary\")",
               "predicate_context": "want, err := json.Marshal(e)\n\tmust(t, err)\n\tif !ok || !bytes.Equal(data, want) {\n\t\tt.Fatal(\"event JSON not stored unchanged as BSON binary\")\n\t}"
             }
@@ -10083,26 +10325,26 @@
         {
           "file": "storage/mongo/integration_test.go",
           "test": "TestNativeProjectionAndNamespace",
-          "line": 371,
+          "line": 376,
           "body_sha256": "50c691ecaa3b43d931bee669b1a6847bb6968e8509926c4fcffc030550d2c59b",
           "assertions": [
             {
-              "line": 397,
+              "line": 402,
               "code": "t.Fatal(p)",
               "predicate_context": "return err\n\t\t}\n\t\tif p.Version != 12 || !p.Deleted {\n\t\t\tt.Fatal(p)\n\t\t}"
             },
             {
-              "line": 403,
+              "line": 408,
               "code": "t.Fatal(\"stale overwrite\")",
               "predicate_context": "p.Deleted = false\n\t\tok, err := tx.PutProjection(ctx, p)\n\t\tif ok {\n\t\t\tt.Fatal(\"stale overwrite\")\n\t\t}"
             },
             {
-              "line": 413,
+              "line": 418,
               "code": "t.Fatal(err)",
               "predicate_context": "must(t, other.View(ctx, func(r eventstore.Reader) error {\n\t\t_, err := r.Projection(ctx, \"id\")\n\t\tif !errors.Is(err, eventstore.ErrNotFound) {\n\t\t\tt.Fatal(err)\n\t\t}"
             },
             {
-              "line": 423,
+              "line": 428,
               "code": "t.Fatal(p)",
               "predicate_context": "must(t, reopened.View(ctx, func(r eventstore.Reader) error {\n\t\tp, err := r.Projection(ctx, \"id\")\n\t\tif p.Version != 12 {\n\t\t\tt.Fatal(p)\n\t\t}"
             }
@@ -10112,21 +10354,21 @@
         {
           "file": "storage/mongo/integration_test.go",
           "test": "TestNativeRetryAndUncertain",
-          "line": 448,
+          "line": 453,
           "body_sha256": "751c932a8fd0d9a6e23ebf302b3109fe9c3987caffdf466b4d206c97ed809a7e",
           "assertions": [
             {
-              "line": 455,
+              "line": 460,
               "code": "t.Fatal(\"transient did not retry\", calls)",
               "predicate_context": "calls := 0\n\tmust(t, b.Update(ctx, func(tx eventstore.Tx) error { calls++; return appendRaw(ctx, tx, testEvent(root, 0)) }))\n\tif calls != 2 {\n\t\tt.Fatal(\"transient did not retry\", calls)\n\t}"
             },
             {
-              "line": 461,
+              "line": 466,
               "code": "t.Fatal(\"uncertain callback replayed\", calls, err)",
               "predicate_context": "calls = 0\n\terr := b.Update(ctx, func(tx eventstore.Tx) error { calls++; return appendRaw(ctx, tx, testEvent(root, 1)) })\n\tif !errors.Is(err, eventstore.ErrUncertain) || calls != 1 {\n\t\tt.Fatal(\"uncertain callback replayed\", calls, err)\n\t}"
             },
             {
-              "line": 467,
+              "line": 472,
               "code": "t.Fatal(\"lost acknowledgement did not exercise committed data\")",
               "predicate_context": "must(t, b.View(ctx, func(r eventstore.Reader) error {\n\t\te, err := r.Find(ctx, testEvent(root, 1).Input.Key)\n\t\tif e.Number != 1 {\n\t\t\tt.Fatal(\"lost acknowledgement did not exercise committed data\")\n\t\t}"
             }
@@ -10136,16 +10378,16 @@
         {
           "file": "storage/mongo/integration_test.go",
           "test": "TestNativeRetryBudget",
-          "line": 473,
+          "line": 478,
           "body_sha256": "6442b41cfad95d4fb3223c15afbef0579d15052a5aca3384572781877cab8d61",
           "assertions": [
             {
-              "line": 480,
+              "line": 485,
               "code": "t.Fatal(\"retry budget not enforced\", calls, err)",
               "predicate_context": "calls := 0\n\terr := b.Update(ctx, func(tx eventstore.Tx) error { calls++; return tx.LockRoots(ctx, []eventstore.Root{testRoot(\"budget\")}) })\n\tif err == nil || calls != 3 {\n\t\tt.Fatal(\"retry budget not enforced\", calls, err)\n\t}"
             },
             {
-              "line": 485,
+              "line": 490,
               "code": "t.Fatal(\"failed retry persisted state\")",
               "predicate_context": "must(t, b.View(ctx, func(r eventstore.Reader) error {\n\t\tn, err := r.Count(ctx, testRoot(\"budget\"))\n\t\tif n != 0 {\n\t\t\tt.Fatal(\"failed retry persisted state\")\n\t\t}"
             }
