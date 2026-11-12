@@ -29,9 +29,9 @@ https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Read
 - **Verification:** Enforce Toolbox absence of Dia imports/code via an automated boundary check; compile/tests/race/vet both independent modules, native PostgreSQL/Mongo and container lifecycles, CLI generated configuration/build, dependency/security checks. Verify the application with only public framework exports; temporary development workspace must not hide private API access or enter committed go.mod.
 - **Resource budget:** Delegate auth/transport extraction and application moves with disjoint ownership. Parent owns package grouping/build/config/module and composed gates. Local branches preserve published mains. Prepare paired reviewable PRs; no merge or source-split main update without approval under root AGENTS release rules.
 
-- [ ] Extract reusable security/HTTP boundaries and remove framework dependency on Dia.
-- [ ] Move Dia models/services/runtime/routes/tests and its identity-backed example into dia-go.
-- [ ] Group related Go packages/models and update all imports, CLI/build/configuration/docs.
+- [x] Extract reusable security/HTTP boundaries and remove framework dependency on Dia.
+- [x] Move Dia models/services/runtime/routes/tests and its identity-backed example into dia-go.
+- [x] Group related Go packages/models and update all imports, CLI/build/configuration/docs.
 - [ ] Add independent-consumer/dependency-boundary checks and run complete relevant gates.
 - [ ] Prepare paired reviewable branches/PRs with exact evidence and coordinated dependency pin.
 
@@ -43,3 +43,14 @@ The permission assertion is about preserving PermissionDenied, not a100ms SLA.
 Use a5s bounded deadline for permission cases, retain the existing100ms deadline
 and DeadlineExceeded assertion for cancellation cases, then rerun the full race
 gate after concurrent native/build work settles. No adapter/runtime change.
+
+### Large-block verification refinement
+
+The isolated rerun reached the final aggregate read but exhausted the shared60s
+fixture budget (body_integration_test.go:80), whereas the overloaded attempt
+expired during block construction. This fixture appends100x180KiB events, builds,
+reads and hashes a >16MiB block, reads its snapshot and replays the full root.
+There is no60s performance contract. Give only this large round-trip fixture a
+bounded3-minute context through a shared fixtureWithBudget helper; keep all small
+fixtures at60s, transaction/cancellation/retry tests and data assertions unchanged.
+Rerun the native suite and retain both earlier failure logs as evidence.

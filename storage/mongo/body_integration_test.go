@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/mejango/blossm-toolbox-go/stores/event"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -25,7 +26,9 @@ func (smallStateReducer) Apply(_ json.RawMessage, e eventstore.Event) (json.RawM
 }
 
 func TestNativeLargeTailBlockPreservesBytes(t *testing.T) {
-	b, ctx := fixture(t)
+	// Large binary round trips under the race detector have no60s latency SLA.
+	// Keep the complete data/hash assertions and a bounded suite context.
+	b, ctx := fixtureWithBudget(t, 3*time.Minute)
 	root := testRoot("large-tail")
 	s := eventstore.Store{Backend: b, Local: true, Reducers: map[string]eventstore.Reducer{"service/domain": smallStateReducer{}}}
 	// Each input/publication fits the parent's240KiB envelope bound; only their

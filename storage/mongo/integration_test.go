@@ -31,7 +31,12 @@ func TestMain(m *testing.M) {
 
 func fixture(t *testing.T) (*Backend, context.Context) {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	return fixtureWithBudget(t, 60*time.Second)
+}
+
+func fixtureWithBudget(t *testing.T, budget time.Duration) (*Backend, context.Context) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), budget)
 	t.Cleanup(cancel)
 	b, err := Open(ctx, Config{URI: os.Getenv("MONGODB_URI"), Database: fmt.Sprintf("blossm_mongo_test_%d", time.Now().UnixNano()), Namespace: "test", MaxAttempts: 30})
 	must(t, err)
