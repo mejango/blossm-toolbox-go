@@ -5,11 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/mejango/blossm-toolbox-go/rpc"
-	"github.com/mejango/blossm-toolbox-go/stores/event"
 	"io"
 	"net/http"
 	"time"
+
+	canonicaljson "github.com/mejango/blossm-toolbox-go/lib/canonical_json"
+	"github.com/mejango/blossm-toolbox-go/rpc/generic"
 )
 
 type Input struct {
@@ -32,7 +33,7 @@ func (p Procedure) Execute(ctx context.Context, in Input) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	normalized, e := eventstore.Canonical(in.Payload)
+	normalized, e := canonicaljson.Canonical(in.Payload)
 	if e != nil {
 		return e
 	}
@@ -59,7 +60,7 @@ func (p Procedure) Handler(authorize func(*http.Request) (Identity, error)) (htt
 		body, e := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
 		var in Input
 		if e == nil {
-			e = eventstore.Decode(body, &in)
+			e = canonicaljson.Decode(body, &in)
 		}
 		if e != nil {
 			http.Error(w, "invalid job input", 400)

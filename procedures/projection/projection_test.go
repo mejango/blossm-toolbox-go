@@ -8,13 +8,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mejango/blossm-toolbox-go/stores/event"
-	"github.com/mejango/blossm-toolbox-go/stores/view"
+	eventlib "github.com/mejango/blossm-toolbox-go/lib/event"
+	"github.com/mejango/blossm-toolbox-go/procedures/view_stores/generic"
 )
 
-type aggregateFn func(context.Context, eventstore.Root) (eventstore.Aggregate, error)
+type aggregateFn func(context.Context, eventlib.Root) (eventlib.Aggregate, error)
 
-func (f aggregateFn) Aggregate(ctx context.Context, r eventstore.Root) (eventstore.Aggregate, error) {
+func (f aggregateFn) Aggregate(ctx context.Context, r eventlib.Root) (eventlib.Aggregate, error) {
 	return f(ctx, r)
 }
 
@@ -23,8 +23,8 @@ type writerFn func(context.Context, []view.Mutation) ([]view.Result, error)
 func (f writerFn) Batch(ctx context.Context, m []view.Mutation) ([]view.Result, error) {
 	return f(ctx, m)
 }
-func testRoot(id string) eventstore.Root {
-	return eventstore.Root{Network: "n", Service: "animals", Domain: "bird", ID: id}
+func testRoot(id string) eventlib.Root {
+	return eventlib.Root{Network: "n", Service: "animals", Domain: "bird", ID: id}
 }
 func raw(s string) json.RawMessage { return json.RawMessage(s) }
 func applied(m []view.Mutation) []view.Result {
@@ -39,8 +39,8 @@ func simplePlan(_ context.Context, in Input) (Plan, error) {
 }
 func engine() Engine {
 	return Engine{
-		Aggregates: aggregateFn(func(_ context.Context, r eventstore.Root) (eventstore.Aggregate, error) {
-			return eventstore.Aggregate{Root: r, Version: 7, State: raw(`{"owner":"alice","sound":"chirp","volume":5}`)}, nil
+		Aggregates: aggregateFn(func(_ context.Context, r eventlib.Root) (eventlib.Aggregate, error) {
+			return eventlib.Aggregate{Root: r, Version: 7, State: raw(`{"owner":"alice","sound":"chirp","volume":5}`)}, nil
 		}),
 		Views:    writerFn(func(_ context.Context, m []view.Mutation) ([]view.Result, error) { return applied(m), nil }),
 		Handlers: map[Source]Handler{source(testRoot("root")): simplePlan},
@@ -154,7 +154,7 @@ func TestPushFailuresAreAfterCommitAndContinue(t *testing.T) {
 	}
 }
 func TestCommitFailureNeverPushes(t *testing.T) {
-	for _, failure := range []error{errors.New("write failed"), eventstore.ErrUncertain} {
+	for _, failure := range []error{errors.New("write failed"), eventlib.ErrUncertain} {
 		e := engine()
 		e.Views = writerFn(func(context.Context, []view.Mutation) ([]view.Result, error) { return nil, failure })
 		e.Push = func(context.Context, Notification) error {
@@ -162,7 +162,7 @@ func TestCommitFailureNeverPushes(t *testing.T) {
 			return nil
 		}
 		r, err := e.Play(context.Background(), eventRequest("r"))
-		if !errors.Is(err, failure) || r.Committed || r.Uncertain != errors.Is(failure, eventstore.ErrUncertain) {
+		if !errors.Is(err, failure) || r.Committed || r.Uncertain != errors.Is(failure, eventlib.ErrUncertain) {
 			t.Fatal(r, err)
 		}
 	}
@@ -178,7 +178,7 @@ func TestSourceIdentityAndRevisionValidation(t *testing.T) {
 		t.Run(kind, func(t *testing.T) {
 			e := engine()
 			request := eventRequest("r")
-			a := eventstore.Aggregate{Root: request.Root, Version: 7, State: raw(`{}`)}
+			a := eventlib.Aggregate{Root: request.Root, Version: 7, State: raw(`{}`)}
 			switch kind {
 			case "root":
 				a.Root.ID = "other"
@@ -201,7 +201,7 @@ func TestSourceIdentityAndRevisionValidation(t *testing.T) {
 			case "empty-source":
 				request.Root.ID = ""
 			}
-			e.Aggregates = aggregateFn(func(context.Context, eventstore.Root) (eventstore.Aggregate, error) { return a, nil })
+			e.Aggregates = aggregateFn(func(context.Context, eventlib.Root) (eventlib.Aggregate, error) { return a, nil })
 			e.Views = writerFn(func(context.Context, []view.Mutation) ([]view.Result, error) {
 				t.Fatal("invalid source reached writer")
 				return nil, nil
@@ -223,8 +223,8 @@ func TestDependenciesAreSerialVersionedAndPreparedBeforeCommit(t *testing.T) {
 	calls := []string{}
 	written := []string{}
 	pushed := []string{}
-	e.Aggregates = aggregateFn(func(_ context.Context, r eventstore.Root) (eventstore.Aggregate, error) {
-		return eventstore.Aggregate{Root: r, Version: int64(r.ID[0] - 'a'), State: raw(`{}`)}, nil
+	e.Aggregates = aggregateFn(func(_ context.Context, r eventlib.Root) (eventlib.Aggregate, error) {
+		return eventlib.Aggregate{Root: r, Version: int64(r.ID[0] - 'a'), State: raw(`{}`)}, nil
 	})
 	e.Handlers[source(testRoot("a"))] = func(_ context.Context, in Input) (Plan, error) {
 		id := in.Aggregate.Root.ID
@@ -266,11 +266,11 @@ func TestDependencyFailureAndBudgetsHaveNoWrites(t *testing.T) {
 			e := engine()
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			e.Aggregates = aggregateFn(func(_ context.Context, r eventstore.Root) (eventstore.Aggregate, error) {
+			e.Aggregates = aggregateFn(func(_ context.Context, r eventlib.Root) (eventlib.Aggregate, error) {
 				if r.ID == "missing" {
-					return eventstore.Aggregate{}, eventstore.ErrNotFound
+					return eventlib.Aggregate{}, eventlib.ErrNotFound
 				}
-				return eventstore.Aggregate{Root: r, Version: 7, State: raw(`{}`)}, nil
+				return eventlib.Aggregate{Root: r, Version: 7, State: raw(`{}`)}, nil
 			})
 			e.Views = writerFn(func(context.Context, []view.Mutation) ([]view.Result, error) {
 				t.Fatal("failed preparation wrote views")
@@ -319,11 +319,11 @@ func TestOptionalMissingAndHandlerIsolation(t *testing.T) {
 	e := engine()
 	sourceState := raw(`{"owner":"alice"}`)
 	handlerBody := raw(`{"owner":"alice"}`)
-	e.Aggregates = aggregateFn(func(_ context.Context, r eventstore.Root) (eventstore.Aggregate, error) {
+	e.Aggregates = aggregateFn(func(_ context.Context, r eventlib.Root) (eventlib.Aggregate, error) {
 		if r.ID == "missing" {
-			return eventstore.Aggregate{Root: r, Version: -1, State: raw(`{}`)}, nil
+			return eventlib.Aggregate{Root: r, Version: -1, State: raw(`{}`)}, nil
 		}
-		return eventstore.Aggregate{Root: r, Version: 7, State: sourceState}, nil
+		return eventlib.Aggregate{Root: r, Version: 7, State: sourceState}, nil
 	})
 	e.Handlers[source(testRoot("a"))] = func(_ context.Context, in Input) (Plan, error) {
 		in.Aggregate.State[0] = '['

@@ -62,3 +62,38 @@ framework pin and passes its application gates. Native ownership regression
 closes the Claude finding; its second bounded review reports closure. Exact
 logs/manifests/initial failures are in docs/SEPARATION.md. PR review/approval and
 merge remain separate; no deployment or main update occurred.
+
+## Plan refinement
+
+- **Objective:** Restore familiar JS organizational naming and enforce a clear dependency hierarchy with lib at the bottom, while keeping Dia independently owned and all runtime behavior intact.
+- **System fit:** Shared types/serialization/helpers underpin vendors and procedure logic. Adapter names return to vendors; stores return to procedures/event_stores and view_stores; transport/composition use the closest original names. Dia consumes updated public imports, never moves back into Toolbox.
+- **Reuse and simplicity:** Relocate existing code and extract current shared primitives once; no wrappers, legacy paths, new runtimes or protocol changes. Preserve Go executable entrypoints and necessary package cohesion.
+- **Evidence and unknowns:** JS names are authoritative navigation references, but observed JS lib/RPC and logging/vendor cycles contradict the user's intended hierarchy. Use current Go imports to enforce a clean DAG rather than reproducing historical violations.
+- **Verification:** Add automated dependency-layer checks, including lib-only internal imports and forbidden-edge fixtures; preserve tests and canonical representations. Run both modules' formatting/vet/unit/race, native and container gates, generated-config checks and independent public-pin validation before new paired PR completion.
+- **Resource budget:** Delegate shared-primitives extraction with exclusive Go write ownership first; parent prepares path mapping and gates. Separate behavior-preserving extraction from mechanical folder moves. Preserve old evidence as historical; no merge of new PRs without final approval.
+
+- [x] Extract bottom-layer event protocol and small helpers without changing behavior.
+- [x] Restore familiar folders and update all consumers, docs and generators coherently.
+- [x] Enforce folder dependency rules with executable regression checks.
+- [x] Verify both independent modules and prepare reviewable changes.
+
+## Plan refinement
+
+- **Objective:** Resolve the native concurrent-challenge failure discovered during final hierarchy verification before completing the requested correction.
+- **System fit:** Mongo's known-abort retry policy protects atomic event/outbox writes; Dia reconciles only an already-visible committed receipt. Preserve uncertain-commit behavior, single-attempt streaming reads and exact operation receipts.
+- **Reuse and simplicity:** Keep the existing labeled-error retry owner. Use bounded jittered exponential waits (10ms initial ceiling, 250ms cap) and ten default total attempts; retain explicit1..100 configuration. Join all concurrent native fixture workers before reporting failure.
+- **Evidence and unknowns:** Preserved final native log proves five callback attempts, TransientTransactionError true, uncertainty false, and exhausted WriteConflict before the winner's receipt was visible. A premature test fatal left another worker logging after test completion, explaining the secondary race. Earlier passing runs did not expose this schedule.
+- **Verification:** Add delay-bound/cancellation tests; retain native retry-budget, unknown-commit and single-attempt View tests. Repeatedly run the real concurrent Dia journey, then rerun affected full native suites and final independent module/container gates. Retain initial failing evidence.
+- **Resource budget:** Separate this behavioral retry fix from the completed mechanical hierarchy commits. Mongo owner changes only its adapter/tests/docs; parent fixes the test lifecycle and public pin. No error-text retries, new conflict classification or cloud writes.
+
+- [x] Correct bounded Mongo contention backoff and prove existing uncertainty/read contracts.
+- [x] Join native fixture workers on failure and reproduce concurrent Dia completion repeatedly.
+- [x] Reverify final public pin, native adapters/application and containers, preserving failed evidence.
+
+### Hierarchy delivery review
+
+All local hierarchy and final public-pin gates passed; exact commands, source
+hashes, initial failure and recovery evidence live in docs/HIERARCHY_VERIFICATION.md.
+The final framework runtime pin is d45c8b4. Original JS and prior verification
+snapshots remain preserved. Review branches are prepared; no new merge or live
+deployment is authorized by this implementation step.

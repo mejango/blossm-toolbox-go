@@ -7,7 +7,7 @@ provider workflow; implementation tests inject isolated fake runners and do not
 perform cloud writes. See the CLI operational workflows for exact options.
 Generated files have `prepared-only` status, never deployed or verified status.
 
-Run commands from the Go module root. See [CLI usage](../cli/README.md).
+Run commands from the Go module root. See [CLI usage](../cli/blossm/README.md).
 Cloud examples use illustrative accounts, resource names and image references;
 validation checks structure and policy, not resource existence or IAM.
 

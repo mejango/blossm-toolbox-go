@@ -12,9 +12,9 @@ import (
 	"sync"
 	"unicode/utf8"
 
+	canonicaljson "github.com/mejango/blossm-toolbox-go/lib/canonical_json"
 	"github.com/mejango/blossm-toolbox-go/procedures/command"
-	"github.com/mejango/blossm-toolbox-go/rpc"
-	"github.com/mejango/blossm-toolbox-go/stores/event"
+	"github.com/mejango/blossm-toolbox-go/rpc/generic"
 )
 
 var ErrInvalid = errors.New("invalid fact input")
@@ -47,7 +47,7 @@ func (p Procedure) prepare(ctx context.Context, in Request) (Request, error) {
 	if len(in.Query) == 0 {
 		in.Query = json.RawMessage(`{}`)
 	}
-	query, err := eventstore.Canonical(in.Query)
+	query, err := canonicaljson.Canonical(in.Query)
 	if err != nil {
 		return in, errors.Join(ErrInvalid, err)
 	}
@@ -74,7 +74,7 @@ func (p Procedure) Read(ctx context.Context, in Request) (json.RawMessage, error
 	if err = ctx.Err(); err != nil {
 		return nil, err
 	}
-	return eventstore.Canonical(raw)
+	return canonicaljson.Canonical(raw)
 }
 
 // Stream awaits every callback, serializing even an accidentally concurrent
@@ -141,7 +141,7 @@ func (c Client) Read(ctx context.Context, path string, query url.Values, headers
 	if err != nil {
 		return nil, err
 	}
-	return eventstore.Canonical(response.Body)
+	return canonicaljson.Canonical(response.Body)
 }
 
 // Stream decodes concatenated JSON objects/arrays independent of transport

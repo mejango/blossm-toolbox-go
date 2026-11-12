@@ -10,8 +10,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/mejango/blossm-toolbox-go/stores/event"
-	"github.com/mejango/blossm-toolbox-go/stores/view"
+	canonicaljson "github.com/mejango/blossm-toolbox-go/lib/canonical_json"
+	eventlib "github.com/mejango/blossm-toolbox-go/lib/event"
+	"github.com/mejango/blossm-toolbox-go/procedures/view_stores/generic"
 )
 
 var (
@@ -22,35 +23,35 @@ var (
 
 // Consumer-owned seams are implemented by eventstore.Store and view.Store.
 type Aggregator interface {
-	Aggregate(context.Context, eventstore.Root) (eventstore.Aggregate, error)
+	Aggregate(context.Context, eventlib.Root) (eventlib.Aggregate, error)
 }
 type Writer interface {
 	Batch(context.Context, []view.Mutation) ([]view.Result, error)
 }
 type Source struct{ Network, Service, Domain string }
 
-func source(root eventstore.Root) Source { return Source{root.Network, root.Service, root.Domain} }
+func source(root eventlib.Root) Source { return Source{root.Network, root.Service, root.Domain} }
 
 // Trigger is supplied only by a trusted event-delivery adapter. Manual plays
 // and replay scheduling omit it, so caller-supplied actions cannot enable push.
 type Trigger struct {
-	Root    eventstore.Root
+	Root    eventlib.Root
 	Version int64
 	Action  string
 }
 type Request struct {
 	RunID RunID `json:"runId,omitempty"`
-	Root  eventstore.Root
+	Root  eventlib.Root
 	Event *Trigger
 	Flag  string
 }
 type Input struct {
-	Aggregate    eventstore.Aggregate
+	Aggregate    eventlib.Aggregate
 	Action, Flag string
 }
 type Handler func(context.Context, Input) (Plan, error)
 type Dependency struct {
-	Root     eventstore.Root
+	Root     eventlib.Root
 	Flag     string
 	Optional bool
 }
@@ -66,7 +67,7 @@ type Mutation struct {
 	Body       json.RawMessage
 	Expected   *int64
 	Operations []view.Operation
-	If         []eventstore.Predicate
+	If         []eventlib.Predicate
 	Delete     bool
 	Tombstone  bool
 }
@@ -81,7 +82,7 @@ type Limits struct{ MaxNodes, MaxMutations int }
 // traces are not present in the Go storage protocol and are not invented here.
 type Notification struct {
 	ID      string
-	Root    eventstore.Root
+	Root    eventlib.Root
 	Version int64
 	Deleted bool
 }
@@ -131,7 +132,7 @@ func (e *Engine) Play(ctx context.Context, request Request) (Result, error) {
 		result.Ignored = true
 		return result, nil
 	}
-	g := graph{engine: e, limits: limits, active: map[eventstore.Root]bool{}, done: map[node]bool{}}
+	g := graph{engine: e, limits: limits, active: map[eventlib.Root]bool{}, done: map[node]bool{}}
 	err = g.visit(ctx, request, false)
 	result.Visited = g.visited
 	if err != nil {
@@ -142,7 +143,7 @@ func (e *Engine) Play(ctx context.Context, request Request) (Result, error) {
 	}
 	rows, err := e.Views.Batch(ctx, g.mutations)
 	if err != nil {
-		result.Uncertain = errors.Is(err, eventstore.ErrUncertain)
+		result.Uncertain = errors.Is(err, eventlib.ErrUncertain)
 		return result, err
 	}
 	result.Committed = true
@@ -177,20 +178,20 @@ func (l Limits) normalized() (Limits, error) {
 	}
 	return l, nil
 }
-func validateRoot(root eventstore.Root) error {
+func validateRoot(root eventlib.Root) error {
 	for _, field := range []string{root.Network, root.Service, root.Domain, root.ID} {
 		if strings.TrimSpace(field) == "" || !utf8.ValidString(field) {
 			return fmt.Errorf("complete projection source root required")
 		}
 	}
-	_, err := eventstore.Encode(root)
+	_, err := canonicaljson.Encode(root)
 	return err
 }
 func validateVersion(version int64) error {
 	if version < 0 {
 		return fmt.Errorf("negative source revision")
 	}
-	_, err := eventstore.Encode(version)
+	_, err := canonicaljson.Encode(version)
 	return err
 }
 func validateRequest(r Request) error {

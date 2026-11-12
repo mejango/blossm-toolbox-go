@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/mejango/blossm-toolbox-go/rpc"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/mejango/blossm-toolbox-go/rpc/generic"
 )
 
 func TestJobHTTP(t *testing.T) {

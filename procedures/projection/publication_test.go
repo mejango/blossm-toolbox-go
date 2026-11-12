@@ -5,43 +5,44 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/mejango/blossm-toolbox-go/stores/event"
-	"github.com/mejango/blossm-toolbox-go/stores/view"
+	canonicaljson "github.com/mejango/blossm-toolbox-go/lib/canonical_json"
+	eventlib "github.com/mejango/blossm-toolbox-go/lib/event"
+	"github.com/mejango/blossm-toolbox-go/procedures/view_stores/generic"
 )
 
 type publicationBackend struct {
-	eventstore.Backend
-	event eventstore.Event
+	eventlib.Backend
+	event eventlib.Event
 	err   error
 }
 type publicationReader struct {
-	eventstore.Reader
-	event eventstore.Event
+	eventlib.Reader
+	event eventlib.Event
 	err   error
 }
 
-func (b publicationBackend) View(ctx context.Context, fn func(eventstore.Reader) error) error {
+func (b publicationBackend) View(ctx context.Context, fn func(eventlib.Reader) error) error {
 	return fn(publicationReader{event: b.event, err: b.err})
 }
-func (r publicationReader) Find(_ context.Context, key string) (eventstore.Event, error) {
+func (r publicationReader) Find(_ context.Context, key string) (eventlib.Event, error) {
 	if key != r.event.Input.Key {
-		return eventstore.Event{}, eventstore.ErrNotFound
+		return eventlib.Event{}, eventlib.ErrNotFound
 	}
 	return r.event, r.err
 }
-func storedPublication(t *testing.T) eventstore.Publication {
+func storedPublication(t *testing.T) eventlib.Publication {
 	t.Helper()
-	in := eventstore.Input{Root: testRoot("bird"), Action: "sang", Key: "event", Payload: raw(`{"sound":"chirp"}`)}
-	f, err := eventstore.Digest(in)
+	in := eventlib.Input{Root: testRoot("bird"), Action: "sang", Key: "event", Payload: raw(`{"sound":"chirp"}`)}
+	f, err := canonicaljson.Digest(in)
 	if err != nil {
 		t.Fatal(err)
 	}
-	e := eventstore.Event{Input: in, Number: 2, Fingerprint: f}
-	e.Hash, err = eventstore.Digest(e)
+	e := eventlib.Event{Input: in, Number: 2, Fingerprint: f}
+	e.Hash, err = canonicaljson.Digest(e)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return eventstore.Publication{ID: e.Hash, Event: e}
+	return eventlib.Publication{ID: e.Hash, Event: e}
 }
 func TestPublicationVerifiedTriggerAndBestEffortPush(t *testing.T) {
 	p := storedPublication(t)
@@ -97,7 +98,7 @@ func TestPublicationRejectsForgedOrMissingSource(t *testing.T) {
 			calls := 0
 			e.Views = writerFn(func(_ context.Context, m []view.Mutation) ([]view.Result, error) {
 				calls++
-				return nil, eventstore.ErrUncertain
+				return nil, eventlib.ErrUncertain
 			})
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -108,12 +109,12 @@ func TestPublicationRejectsForgedOrMissingSource(t *testing.T) {
 			case "id":
 				p.ID = "wrong"
 			case "missing":
-				readErr = eventstore.ErrNotFound
+				readErr = eventlib.ErrNotFound
 			case "different-stored":
 				stored.Input.Action = "other"
-				stored.Fingerprint, _ = eventstore.Digest(stored.Input)
+				stored.Fingerprint, _ = canonicaljson.Digest(stored.Input)
 				stored.Hash = ""
-				stored.Hash, _ = eventstore.Digest(stored)
+				stored.Hash, _ = canonicaljson.Digest(stored)
 			case "canceled":
 				cancel()
 			}
@@ -123,7 +124,7 @@ func TestPublicationRejectsForgedOrMissingSource(t *testing.T) {
 				t.Fatal("accepted", mode)
 			}
 			if mode == "uncertain" {
-				if !errors.Is(err, eventstore.ErrUncertain) || calls != 1 {
+				if !errors.Is(err, eventlib.ErrUncertain) || calls != 1 {
 					t.Fatal(err, calls)
 				}
 			} else if calls != 0 {

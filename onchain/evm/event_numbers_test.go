@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/mejango/blossm-toolbox-go/stores/event"
+	canonicaljson "github.com/mejango/blossm-toolbox-go/lib/canonical_json"
 )
 
 func TestPersistedEVMUint64UsesDecimalStrings(t *testing.T) {
@@ -14,7 +14,7 @@ func TestPersistedEVMUint64UsesDecimalStrings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	canonical, err := eventstore.Canonical(raw)
+	canonical, err := canonicaljson.Canonical(raw)
 	if err != nil {
 		t.Fatal("nonce exceeds safe53 number encoding", err)
 	}
@@ -27,7 +27,7 @@ func TestPersistedEVMUint64UsesDecimalStrings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	canonical, err = eventstore.Canonical(raw)
+	canonical, err = canonicaljson.Canonical(raw)
 	if err != nil {
 		t.Fatal("observation exceeds safe53 number encoding", err)
 	}

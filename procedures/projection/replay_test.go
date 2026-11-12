@@ -7,20 +7,20 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/mejango/blossm-toolbox-go/stores/event"
+	eventlib "github.com/mejango/blossm-toolbox-go/lib/event"
 )
 
-type rootsFn func(context.Context, func(eventstore.Root) error) error
+type rootsFn func(context.Context, func(eventlib.Root) error) error
 
-func (f rootsFn) StreamRoots(ctx context.Context, fn func(eventstore.Root) error) error {
+func (f rootsFn) StreamRoots(ctx context.Context, fn func(eventlib.Root) error) error {
 	return f(ctx, fn)
 }
 
 type producerFn func(context.Context, Request) error
 
 func (f producerFn) Enqueue(ctx context.Context, r Request) error { return f(ctx, r) }
-func stream(roots []eventstore.Root, visited *int) RootStream {
-	return rootsFn(func(ctx context.Context, fn func(eventstore.Root) error) error {
+func stream(roots []eventlib.Root, visited *int) RootStream {
+	return rootsFn(func(ctx context.Context, fn func(eventlib.Root) error) error {
 		for _, root := range roots {
 			*visited++
 			if err := fn(root); err != nil {
@@ -31,7 +31,7 @@ func stream(roots []eventstore.Root, visited *int) RootStream {
 	})
 }
 func TestReplayBoundedManualSchedulingAndResume(t *testing.T) {
-	roots := []eventstore.Root{}
+	roots := []eventlib.Root{}
 	for i := 0; i < 150; i++ {
 		roots = append(roots, testRoot(fmt.Sprintf("%03d", i)))
 	}
@@ -59,7 +59,7 @@ func TestReplayBoundedManualSchedulingAndResume(t *testing.T) {
 	}
 }
 func TestReplayConfirmedProgressOnProducerFailure(t *testing.T) {
-	roots := []eventstore.Root{testRoot("a"), testRoot("b"), testRoot("c")}
+	roots := []eventlib.Root{testRoot("a"), testRoot("b"), testRoot("c")}
 	visited, calls := 0, 0
 	failure := errors.New("enqueue acknowledgement lost")
 	s := Scheduler{Roots: stream(roots, &visited), Producer: producerFn(func(context.Context, Request) error {
@@ -82,7 +82,7 @@ func TestReplayConfirmedProgressOnProducerFailure(t *testing.T) {
 }
 func TestReplayReadFailureAndInvalidInputsNeverEnqueue(t *testing.T) {
 	failure := errors.New("stream failed")
-	s := Scheduler{Producer: producerFn(func(context.Context, Request) error { t.Fatal("enqueue despite failed collection"); return nil }), Roots: rootsFn(func(_ context.Context, fn func(eventstore.Root) error) error {
+	s := Scheduler{Producer: producerFn(func(context.Context, Request) error { t.Fatal("enqueue despite failed collection"); return nil }), Roots: rootsFn(func(_ context.Context, fn func(eventlib.Root) error) error {
 		if err := fn(testRoot("a")); err != nil {
 			return err
 		}
@@ -107,13 +107,13 @@ func TestReplayReadFailureAndInvalidInputsNeverEnqueue(t *testing.T) {
 		t.Fatal(err)
 	}
 	visited := 0
-	s.Roots = stream([]eventstore.Root{testRoot("b"), testRoot("a")}, &visited)
+	s.Roots = stream([]eventlib.Root{testRoot("b"), testRoot("a")}, &visited)
 	if _, err := s.Replay(context.Background(), source(testRoot("a")), "run-1", "", 10); err == nil {
 		t.Fatal("unordered root source accepted")
 	}
 }
 func TestReplayScopeIsolation(t *testing.T) {
-	roots := []eventstore.Root{testRoot("a"), testRoot("b")}
+	roots := []eventlib.Root{testRoot("a"), testRoot("b")}
 	other := testRoot("foreign")
 	other.Network = "other"
 	roots = append(roots, other)
@@ -135,7 +135,7 @@ func TestReplayScopeIsolation(t *testing.T) {
 func TestReplayRunIdentityAcrossRetriesAndNewRuns(t *testing.T) {
 	visited := 0
 	var requests []Request
-	scheduler := Scheduler{Roots: stream([]eventstore.Root{testRoot("a"), testRoot("b")}, &visited), Producer: producerFn(func(_ context.Context, r Request) error { requests = append(requests, r); return nil })}
+	scheduler := Scheduler{Roots: stream([]eventlib.Root{testRoot("a"), testRoot("b")}, &visited), Producer: producerFn(func(_ context.Context, r Request) error { requests = append(requests, r); return nil })}
 	for _, run := range []RunID{"run-1", "run-1", "run-2"} {
 		result, err := scheduler.Replay(context.Background(), source(testRoot("a")), run, "", 1)
 		if err != nil || result.RunID != run || result.Enqueued != 1 || result.Complete {
@@ -147,7 +147,7 @@ func TestReplayRunIdentityAcrossRetriesAndNewRuns(t *testing.T) {
 	}
 	before := visited
 	for _, run := range []RunID{"", " \t", RunID(string(make([]byte, 1025)))} {
-		if _, err := scheduler.Replay(context.Background(), source(testRoot("a")), run, "", 1); !errors.Is(err, eventstore.ErrInvalid) {
+		if _, err := scheduler.Replay(context.Background(), source(testRoot("a")), run, "", 1); !errors.Is(err, eventlib.ErrInvalid) {
 			t.Fatal(err)
 		}
 	}

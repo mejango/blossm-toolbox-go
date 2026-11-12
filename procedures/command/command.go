@@ -10,7 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mejango/blossm-toolbox-go/stores/event"
+	canonicaljson "github.com/mejango/blossm-toolbox-go/lib/canonical_json"
+	eventlib "github.com/mejango/blossm-toolbox-go/lib/event"
 )
 
 var (
@@ -29,7 +30,7 @@ func RequireContext(values Context, required []string) error {
 		if !ok || len(value) == 0 {
 			return ErrForbidden
 		}
-		normalized, err := eventstore.Canonical(value)
+		normalized, err := canonicaljson.Canonical(value)
 		if err != nil {
 			return ErrForbidden
 		}
@@ -42,22 +43,22 @@ func RequireContext(values Context, required []string) error {
 }
 
 type Request struct {
-	ID          string                 `json:"id"`
-	Issued      string                 `json:"issued"`
-	Root        *eventstore.Root       `json:"root,omitempty"`
-	Payload     json.RawMessage        `json:"payload"`
-	Context     Context                `json:"context,omitempty"`
-	Claims      json.RawMessage        `json:"claims,omitempty"`
-	Transaction eventstore.Transaction `json:"transaction"`
-	Async       bool                   `json:"async,omitempty"`
+	ID          string               `json:"id"`
+	Issued      string               `json:"issued"`
+	Root        *eventlib.Root       `json:"root,omitempty"`
+	Payload     json.RawMessage      `json:"payload"`
+	Context     Context              `json:"context,omitempty"`
+	Claims      json.RawMessage      `json:"claims,omitempty"`
+	Transaction eventlib.Transaction `json:"transaction"`
+	Async       bool                 `json:"async,omitempty"`
 }
 
 type Appender interface {
-	Append(context.Context, []eventstore.Input) ([]eventstore.Receipt, error)
+	Append(context.Context, []eventlib.Input) ([]eventlib.Receipt, error)
 }
 type Submission struct {
-	ID     string             `json:"id"`
-	Events []eventstore.Input `json:"events"`
+	ID     string           `json:"id"`
+	Events []eventlib.Input `json:"events"`
 }
 type Acceptance struct {
 	ID string `json:"id"`
@@ -81,7 +82,7 @@ type Contribution struct {
 }
 
 type Result struct {
-	Events   []eventstore.Input
+	Events   []eventlib.Input
 	Response Contribution
 	// Then receives all outcomes in input order, including an empty slice.
 	// It is awaited but not durable. Gate side effects explicitly on COMMITTED;
@@ -90,9 +91,9 @@ type Result struct {
 }
 
 type Receipt struct {
-	Outcome eventstore.Outcome `json:"outcome"`
-	Input   eventstore.Input   `json:"input"`
-	Event   *eventstore.Event  `json:"event,omitempty"`
+	Outcome eventlib.Outcome `json:"outcome"`
+	Input   eventlib.Input   `json:"input"`
+	Event   *eventlib.Event  `json:"event,omitempty"`
 }
 
 type Response struct {
@@ -118,7 +119,7 @@ type Procedure struct {
 	Local            bool
 	RequiredContexts []string
 	RequiresRoot     bool
-	Trace            *eventstore.Trace
+	Trace            *eventlib.Trace
 	Validate         func(context.Context, Request) error
 	Fill             func(context.Context, json.RawMessage) (json.RawMessage, error)
 	Normalize        func(context.Context, json.RawMessage) (json.RawMessage, error)
@@ -147,7 +148,7 @@ func (p Procedure) Execute(ctx context.Context, in Request) (Response, error) {
 	if len(in.Payload) == 0 {
 		in.Payload = json.RawMessage(`{}`)
 	}
-	in.Payload, err = eventstore.Canonical(in.Payload)
+	in.Payload, err = canonicaljson.Canonical(in.Payload)
 	if err != nil {
 		return response, fmt.Errorf("%w: payload", ErrInvalid)
 	}
@@ -165,7 +166,7 @@ func (p Procedure) Execute(ctx context.Context, in Request) (Response, error) {
 			}
 		}
 	}
-	in.Payload, err = eventstore.Canonical(in.Payload)
+	in.Payload, err = canonicaljson.Canonical(in.Payload)
 	if err != nil {
 		return response, fmt.Errorf("%w: transformed payload", ErrInvalid)
 	}
@@ -178,7 +179,7 @@ func (p Procedure) Execute(ctx context.Context, in Request) (Response, error) {
 	if len(in.Claims) > 0 {
 		in.Transaction.Claims = append(json.RawMessage(nil), in.Claims...)
 	}
-	in.Transaction.Path = append([]eventstore.Trace(nil), in.Transaction.Path...)
+	in.Transaction.Path = append([]eventlib.Trace(nil), in.Transaction.Path...)
 	if p.Trace != nil {
 		in.Transaction.Path = append(in.Transaction.Path, *p.Trace)
 	}
@@ -198,11 +199,11 @@ func (p Procedure) Execute(ctx context.Context, in Request) (Response, error) {
 	if in.Context == nil {
 		contextJSON = []byte(`{}`)
 	}
-	events := append([]eventstore.Input(nil), result.Events...)
+	events := append([]eventlib.Input(nil), result.Events...)
 	conditional := false
 	for i := range events {
 		event := &events[i]
-		if event.Root == (eventstore.Root{}) && in.Root != nil {
+		if event.Root == (eventlib.Root{}) && in.Root != nil {
 			event.Root = *in.Root
 		}
 		if event.Key == "" {
@@ -210,7 +211,7 @@ func (p Procedure) Execute(ctx context.Context, in Request) (Response, error) {
 			if actorErr != nil {
 				return response, fmt.Errorf("%w: actor identity: %w", ErrInvalid, actorErr)
 			}
-			event.Key, err = eventstore.Digest([]any{"blossm.command.event.v2", actor, in.ID, i})
+			event.Key, err = canonicaljson.Digest([]any{"blossm.command.event.v2", actor, in.ID, i})
 			if err != nil {
 				return response, err
 			}
@@ -239,7 +240,7 @@ func (p Procedure) Execute(ctx context.Context, in Request) (Response, error) {
 		}
 		response.Acceptance = &accepted
 		for _, event := range events {
-			response.Receipts = append(response.Receipts, Receipt{Outcome: eventstore.Queued, Input: event})
+			response.Receipts = append(response.Receipts, Receipt{Outcome: eventlib.Queued, Input: event})
 		}
 	} else if len(events) > 0 {
 		if p.Store == nil {
@@ -253,7 +254,7 @@ func (p Procedure) Execute(ctx context.Context, in Request) (Response, error) {
 			return response, errors.New("append returned incomplete receipts")
 		}
 		for i, receipt := range receipts {
-			if receipt.Outcome != eventstore.Committed && receipt.Outcome != eventstore.Duplicate {
+			if receipt.Outcome != eventlib.Committed && receipt.Outcome != eventlib.Duplicate {
 				return response, errors.New("append returned unconfirmed outcome")
 			}
 			persisted := receipt.Event
@@ -270,9 +271,9 @@ func (p Procedure) Execute(ctx context.Context, in Request) (Response, error) {
 		}
 		outcomes := make([]Receipt, len(response.Receipts))
 		for i, receipt := range response.Receipts {
-			receipt.Input = eventstore.CloneEvent(eventstore.Event{Input: receipt.Input}).Input
+			receipt.Input = eventlib.CloneEvent(eventlib.Event{Input: receipt.Input}).Input
 			if receipt.Event != nil {
-				event := eventstore.CloneEvent(*receipt.Event)
+				event := eventlib.CloneEvent(*receipt.Event)
 				receipt.Event = &event
 			}
 			outcomes[i] = receipt
@@ -300,7 +301,7 @@ func (p Procedure) Execute(ctx context.Context, in Request) (Response, error) {
 
 // Consume commits acknowledged queue payloads. It never reruns command Main or
 // serializes callbacks; delivery is at least once and event keys own deduplication.
-func Consume(ctx context.Context, store Appender, submission Submission) ([]eventstore.Receipt, error) {
+func Consume(ctx context.Context, store Appender, submission Submission) ([]eventlib.Receipt, error) {
 	if store == nil || submission.ID == "" || len(submission.Events) == 0 {
 		return nil, ErrInvalid
 	}
@@ -312,12 +313,12 @@ func validContribution(c Contribution) error {
 		return fmt.Errorf("%w: response status", ErrInvalid)
 	}
 	for _, v := range c.Body {
-		if _, err := eventstore.Canonical(v); err != nil {
+		if _, err := canonicaljson.Canonical(v); err != nil {
 			return fmt.Errorf("%w: response body", ErrInvalid)
 		}
 	}
 	for _, v := range c.Tokens {
-		if _, err := eventstore.Canonical(v); err != nil {
+		if _, err := canonicaljson.Canonical(v); err != nil {
 			return fmt.Errorf("%w: response token", ErrInvalid)
 		}
 	}
@@ -349,15 +350,15 @@ func merge(base, add Contribution) Contribution {
 // only issuer/audience/subject identify an actor; credential lifetime is irrelevant.
 func actorIdentity(in Request) (json.RawMessage, error) {
 	if principal, ok := in.Context["principal"]; ok {
-		canonical, err := eventstore.Canonical(principal)
+		canonical, err := canonicaljson.Canonical(principal)
 		if err != nil {
 			return nil, err
 		}
-		return eventstore.Encode([]any{"principal", canonical})
+		return canonicaljson.Encode([]any{"principal", canonical})
 	}
 	var claims map[string]json.RawMessage
 	if len(in.Transaction.Claims) > 0 {
-		if err := eventstore.Decode(in.Transaction.Claims, &claims); err != nil {
+		if err := canonicaljson.Decode(in.Transaction.Claims, &claims); err != nil {
 			return nil, err
 		}
 		if claims == nil {
@@ -370,5 +371,5 @@ func actorIdentity(in Request) (json.RawMessage, error) {
 			identity[name] = value
 		}
 	}
-	return eventstore.Encode([]any{"claims", identity})
+	return canonicaljson.Encode([]any{"claims", identity})
 }

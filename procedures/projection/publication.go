@@ -4,21 +4,22 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mejango/blossm-toolbox-go/stores/event"
+	eventlib "github.com/mejango/blossm-toolbox-go/lib/event"
+	"github.com/mejango/blossm-toolbox-go/procedures/event_stores/generic"
 )
 
 // PublicationAdapter binds a verified, persisted source event to Play. Backend
 // must read the source event store, not the projection destination. Authentication
 // and source routing remain the delivery consumer's responsibility.
 type PublicationAdapter struct {
-	Backend eventstore.Backend
+	Backend eventlib.Backend
 	Engine  *Engine
 	// OnPushFailure observes best-effort failures after durable view success.
 	// It must return promptly; it cannot roll back the committed view.
 	OnPushFailure func(context.Context, PushFailure)
 }
 
-func (p PublicationAdapter) Consume(ctx context.Context, notice eventstore.Publication) (Result, error) {
+func (p PublicationAdapter) Consume(ctx context.Context, notice eventlib.Publication) (Result, error) {
 	if err := ctx.Err(); err != nil {
 		return Result{}, err
 	}
@@ -34,8 +35,8 @@ func (p PublicationAdapter) Consume(ctx context.Context, notice eventstore.Publi
 	if err := eventstore.Verify(notice.Event); err != nil {
 		return Result{}, err
 	}
-	var persisted eventstore.Event
-	err := p.Backend.View(ctx, func(r eventstore.Reader) error {
+	var persisted eventlib.Event
+	err := p.Backend.View(ctx, func(r eventlib.Reader) error {
 		var err error
 		persisted, err = r.Find(ctx, notice.Event.Input.Key)
 		return err
@@ -60,9 +61,9 @@ func (p PublicationAdapter) Consume(ctx context.Context, notice eventstore.Publi
 }
 
 // Publish acknowledges durable projection work even when best-effort push fails.
-func (p PublicationAdapter) Publish(ctx context.Context, notice eventstore.Publication) error {
+func (p PublicationAdapter) Publish(ctx context.Context, notice eventlib.Publication) error {
 	_, err := p.Consume(ctx, notice)
 	return err
 }
 
-var _ eventstore.Publisher = PublicationAdapter{}
+var _ eventlib.Publisher = PublicationAdapter{}

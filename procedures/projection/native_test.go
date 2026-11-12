@@ -15,10 +15,13 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	mongostore "github.com/mejango/blossm-toolbox-go/storage/mongo"
-	"github.com/mejango/blossm-toolbox-go/storage/postgres"
-	"github.com/mejango/blossm-toolbox-go/stores/event"
-	"github.com/mejango/blossm-toolbox-go/stores/view"
+	canonicaljson "github.com/mejango/blossm-toolbox-go/lib/canonical_json"
+	eventlib "github.com/mejango/blossm-toolbox-go/lib/event"
+	querymatch "github.com/mejango/blossm-toolbox-go/lib/query"
+	"github.com/mejango/blossm-toolbox-go/procedures/event_stores/generic"
+	"github.com/mejango/blossm-toolbox-go/procedures/view_stores/generic"
+	mongostore "github.com/mejango/blossm-toolbox-go/vendors/mongodb"
+	"github.com/mejango/blossm-toolbox-go/vendors/postgres"
 	driver "go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
@@ -33,7 +36,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(m.Run())
 }
-func nativeBackend(t *testing.T, kind string) (eventstore.Backend, context.Context) {
+func nativeBackend(t *testing.T, kind string) (eventlib.Backend, context.Context) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	t.Cleanup(cancel)
@@ -85,21 +88,21 @@ func nativeBackend(t *testing.T, kind string) (eventstore.Backend, context.Conte
 type replaceReducer struct{}
 
 func (replaceReducer) Normalize(_ string, p json.RawMessage) (json.RawMessage, error) {
-	return eventstore.Canonical(p)
+	return canonicaljson.Canonical(p)
 }
-func (replaceReducer) Apply(_ json.RawMessage, e eventstore.Event) (json.RawMessage, error) {
+func (replaceReducer) Apply(_ json.RawMessage, e eventlib.Event) (json.RawMessage, error) {
 	return e.Input.Payload, nil
 }
-func nativeOwners(b eventstore.Backend) (*eventstore.Store, *view.Store, Engine) {
-	events := &eventstore.Store{Backend: b, Local: true, Reducers: map[string]eventstore.Reducer{"animals/bird": replaceReducer{}}}
-	views := &view.Store{Backend: b, Scope: view.Scope{Network: "n", Service: "animals", Domain: "bird", Owner: []eventstore.Predicate{{Path: "owner", Value: raw(`"alice"`)}}}}
+func nativeOwners(b eventlib.Backend) (*eventstore.Store, *view.Store, Engine) {
+	events := &eventstore.Store{Backend: b, Local: true, Reducers: map[string]eventlib.Reducer{"animals/bird": replaceReducer{}}}
+	views := &view.Store{Backend: b, Scope: view.Scope{Network: "n", Service: "animals", Domain: "bird", Owner: []eventlib.Predicate{{Path: "owner", Value: raw(`"alice"`)}}}}
 	e := Engine{Aggregates: events, Views: views, Handlers: map[Source]Handler{}}
 	return events, views, e
 }
 func appendState(t *testing.T, ctx context.Context, s *eventstore.Store, id, key, body string) Request {
 	t.Helper()
 	root := testRoot(id)
-	receipt, err := s.Append(ctx, []eventstore.Input{{Root: root, Key: key, Action: "changed", Created: "2026-11-12T00:00:00Z", Payload: raw(body), Transaction: eventstore.Transaction{ID: key, Issued: "2026-11-12T00:00:00Z"}}})
+	receipt, err := s.Append(ctx, []eventlib.Input{{Root: root, Key: key, Action: "changed", Created: "2026-11-12T00:00:00Z", Payload: raw(body), Transaction: eventlib.Transaction{ID: key, Issued: "2026-11-12T00:00:00Z"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,13 +170,13 @@ func TestNativeProjectionOutOfOrderAndTombstones(t *testing.T) {
 					}
 					p, err := views.Get(ctx, "card")
 					if deleted {
-						if !errors.Is(err, eventstore.ErrNotFound) {
+						if !errors.Is(err, eventlib.ErrNotFound) {
 							t.Fatal(p, err)
 						}
 					} else if err != nil || p.Version != 1 {
 						t.Fatal(p, err)
 					}
-					if err = backend.View(ctx, func(r eventstore.Reader) error {
+					if err = backend.View(ctx, func(r eventlib.Reader) error {
 						p, err := r.Projection(ctx, "card")
 						if err == nil && (p.Version != 1 || p.Deleted != deleted) {
 							t.Fatal(p)
@@ -205,7 +208,7 @@ func TestNativeProjectionConditionsFiltersAndAtomicFailure(t *testing.T) {
 					condition = raw(`"closed"`)
 					expected = 1
 				}
-				return Plan{Mutations: []Mutation{{ID: "filtered", Expected: &expected, If: []eventstore.Predicate{{Path: "status", Value: condition}}, Operations: []view.Operation{{Kind: view.Set, Path: "items.$[item].value", Value: raw(`"new"`), Filters: map[string][]eventstore.Predicate{"item": {{Path: "id", Value: raw(`"first"`)}}}}}}}}, nil
+				return Plan{Mutations: []Mutation{{ID: "filtered", Expected: &expected, If: []eventlib.Predicate{{Path: "status", Value: condition}}, Operations: []view.Operation{{Kind: view.Set, Path: "items.$[item].value", Value: raw(`"new"`), Filters: map[string][]eventlib.Predicate{"item": {{Path: "id", Value: raw(`"first"`)}}}}}}}}, nil
 			}
 			body := `{"owner":"alice","status":"active","items":[{"id":"first","value":"old"},{"id":"second","value":"old"}]}`
 			pushFailure := errors.New("notification provider unavailable")
@@ -229,7 +232,7 @@ func TestNativeProjectionConditionsFiltersAndAtomicFailure(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			matches, err := eventstore.Matches(p.Body, []eventstore.Predicate{{Path: "items.value", Value: raw(`"new"`)}, {Path: "items.value", Value: raw(`"old"`)}})
+			matches, err := querymatch.Matches(p.Body, []eventlib.Predicate{{Path: "items.value", Value: raw(`"new"`)}, {Path: "items.value", Value: raw(`"old"`)}})
 			if err != nil || !matches {
 				t.Fatal(string(p.Body), err)
 			}
@@ -243,7 +246,7 @@ func TestNativeProjectionConditionsFiltersAndAtomicFailure(t *testing.T) {
 			if err == nil || result.Committed {
 				t.Fatal("batch claimed success", result, err)
 			}
-			if _, err = views.Get(ctx, "good"); !errors.Is(err, eventstore.ErrNotFound) {
+			if _, err = views.Get(ctx, "good"); !errors.Is(err, eventlib.ErrNotFound) {
 				t.Fatal("atomic batch left partial view", err)
 			}
 		})
@@ -258,7 +261,7 @@ func TestNativeReplayBuffersBeforeProducerEffects(t *testing.T) {
 			for _, id := range []string{"a", "b", "c"} {
 				appendState(t, ctx, events, id, id, `{"owner":"alice"}`)
 			}
-			if err := backend.Update(ctx, func(tx eventstore.Tx) error { return tx.LockRoots(ctx, []eventstore.Root{testRoot("empty")}) }); err != nil {
+			if err := backend.Update(ctx, func(tx eventlib.Tx) error { return tx.LockRoots(ctx, []eventlib.Root{testRoot("empty")}) }); err != nil {
 				t.Fatal(err)
 			}
 			e.Push = func(context.Context, Notification) error { t.Fatal("scheduled replay pushed"); return nil }

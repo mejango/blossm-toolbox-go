@@ -9,10 +9,11 @@ import (
 	"sync"
 	"testing"
 
+	eventlib "github.com/mejango/blossm-toolbox-go/lib/event"
 	"github.com/mejango/blossm-toolbox-go/procedures/command"
-	"github.com/mejango/blossm-toolbox-go/rpc"
-	"github.com/mejango/blossm-toolbox-go/stores/event"
-	"github.com/mejango/blossm-toolbox-go/transport"
+	commandrpc "github.com/mejango/blossm-toolbox-go/procedures/command/rpc"
+	"github.com/mejango/blossm-toolbox-go/procedures/gateways"
+	"github.com/mejango/blossm-toolbox-go/rpc/generic"
 )
 
 type actorQueue struct {
@@ -42,7 +43,7 @@ func TestActorNamespacePreservesNestedChildIDs(t *testing.T) {
 		raw, _ := json.Marshal(principal)
 		return transport.Identity{Context: command.Context{"principal": raw}}, nil
 	}, Commands: map[string]command.Procedure{"child": {Queue: q, Main: func(_ context.Context, in command.Request) (command.Result, error) {
-		return command.Result{Events: []eventstore.Input{{Root: eventstore.Root{Network: "local", Service: "core", Domain: "example", ID: "one"}, Action: "set", Payload: in.Payload}}}, nil
+		return command.Result{Events: []eventlib.Input{{Root: eventlib.Root{Network: "local", Service: "core", Domain: "example", ID: "one"}, Action: "set", Payload: in.Payload}}}, nil
 	}}}}
 	h, err := framework.Handler(context.Background())
 	if err != nil {
@@ -54,7 +55,7 @@ func TestActorNamespacePreservesNestedChildIDs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	client := transport.CommandClient{RPC: wire, Target: "child-service", Authorize: func(_ context.Context, parent command.Request) (http.Header, error) {
+	client := commandrpc.CommandClient{RPC: wire, Target: "child-service", Authorize: func(_ context.Context, parent command.Request) (http.Header, error) {
 		var actor string
 		if err := json.Unmarshal(parent.Context["principal"], &actor); err != nil {
 			return nil, err
@@ -66,7 +67,7 @@ func TestActorNamespacePreservesNestedChildIDs(t *testing.T) {
 	for _, actor := range []string{`"alice"`, `"alice"`, `"bob"`} {
 		parent.Context = command.Context{"principal": json.RawMessage(actor)}
 		result, err := client.Execute(context.Background(), parent, "child", "reserve", command.Request{Async: true, Payload: json.RawMessage(`{}`)})
-		if err != nil || len(result.Receipts) != 1 || result.Receipts[0].Outcome != eventstore.Queued {
+		if err != nil || len(result.Receipts) != 1 || result.Receipts[0].Outcome != eventlib.Queued {
 			t.Fatal(result, err)
 		}
 		ids = append(ids, result.ID)
