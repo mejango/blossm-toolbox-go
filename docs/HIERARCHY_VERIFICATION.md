@@ -3,7 +3,7 @@
 This record covers the restored JS naming and downward Go dependency hierarchy,
 not the earlier independent-application split or a live deployment.
 
-Toolbox passes formatting, application boundary and layer checks, all ten layer
+Toolbox passes formatting, application boundary and layer checks, all eleven layer
 checker fixtures, go vet, full unit and race suites, native PostgreSQL/MongoDB and
 Redis contracts, module verification/tidy-diff, generated configuration and CLI
 build. The pinned vulnerability checker reports no vulnerabilities. The rebuilt
@@ -24,3 +24,10 @@ behavior change. The CLI generates imports from current owners.
 Dia independent public-pin verification and the bounded Claude follow-up remain
 pending at this source commit; their results will be recorded before review
 completion. No new dependency versions or live cloud operations were introduced.
+
+Claude review found a library test dependency gap and stale documentation paths.
+The KMS composition fixture now lives in tests/signing; lib-only dependencies
+are enforced for library test files too. All11 checker fixtures and focused
+JWT/signing unit/race/vet pass. Production Go bytes match d21c5e8 exactly; the
+previous full native/container results therefore cover the unchanged runtime.
+The source manifest will be finalized with the completed independent Dia gates.

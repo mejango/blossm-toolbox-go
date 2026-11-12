@@ -542,24 +542,24 @@ runs on retries; side effects must explicitly check `Committed`. This callback
 is not durable orchestration, and its failure does not undo confirmed receipts.
 
 Current generic command/fact/job/events/aggregate/query routes are implemented in
-`transport/framework.go`, with required authenticated identity injection and stream-failure
+`procedures/gateways/framework.go`, with required authenticated identity injection and stream-failure
 handling. CORS and job HTTP/RPC tests are present; the parent reports passing scoped checks.
-`audit/export.go` implements AES256-GCM private exports with mandatory ES256-P1363 signatures
+`procedures/event_stores/audit/export.go` implements AES256-GCM private exports with mandatory ES256-P1363 signatures
 and configured producer verification. Internal SHA256 JSON blocks deliberately replace historical MPT/RLP block exports
 by user decision; lack of legacy block composition is not an implementation gap. MPT/RLP primitives and JavaScript golden vectors now exist in
-`cryptography/`; the parent now reports their Go1.27.4 scoped race/vet passing.
+`lib/merkle_tree`, `lib/rlp` and `tests/cryptography`; the parent now reports their Go1.27.4 scoped race/vet passing.
 External primitive byte parity does not turn the intentionally redesigned internal
 SHA256 block format into the legacy block wire format.
 
 Application authentication deliberately uses one Go ES256 JWT with epoch-second dates and
-Bearer transport. Legacy JWT wire families are redesigned; explicit gateway Basic/key/cookie credential boundaries are implemented separately in `transport/auth.go` and `transport/gateway_cookie.go`. Their validation is not implied by the JWT redesign.
+Bearer transport. Legacy JWT wire families are redesigned; explicit gateway Basic/key/cookie credential boundaries are implemented separately in `procedures/gateways/auth.go` and `procedures/gateways/gateway_cookie.go`. Their validation is not implied by the JWT redesign.
 Authenticated internal service claims are injected by composition. Outbound GCP identity
 tokens and AWS SigV4 signing are separate provider contracts. CLI `token` prepares offline;
 explicit `--execute` invokes injected gcloud identity-token acquisition with one audience.
 AWS has no fabricated bearer-token equivalent.
 
 Projection orchestration now has standalone authenticated HTTP/RPC adapters in
-`transport/projection_routes.go`; [the adapter contract](../procedures/gateways/PROJECTION.md)
+`procedures/gateways/projection_routes.go`; [the adapter contract](../procedures/gateways/PROJECTION.md)
 records trusted resolver scope, manual-trigger restrictions and progress/error handling.
 Owned route/RPC race tests and transport vet passed on Go1.27.1. The projection owner reports both-database native race success2.613s. Framework
 now mounts explicitly configured Projections/Views, with scoped authorization tests.

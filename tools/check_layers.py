@@ -2,8 +2,9 @@
 """Check production Go dependency layers, offline and independent of build tags.
 
 Only actual import declarations are read, not comments or generated source strings.
-*_test.go files (including integration tests) are excluded: their upward imports
-are test wiring, not production dependencies. All other Go files participate,
+lib/ imports must stay within lib even in *_test.go files. Other layers' test
+files are excluded as composition wiring. Test imports never enter the production
+cycle graph, including external tests importing their own library. All production files participate,
 including platform-specific and build-tagged files. Go compilation remains the
 owner of full syntax/type validation; this lexer reads the package/import header.
 The explicit tests/ root may contain reusable harness .go packages importing
@@ -185,13 +186,17 @@ def check(root):
     for directory, dirs, files in os.walk(root):
         dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)
         for name in sorted(files):
-            if not name.endswith('.go') or name.endswith('_test.go'):
+            if not name.endswith('.go'):
                 continue
             file = Path(directory) / name
             relative = file.relative_to(root)
             package = relative.parent.as_posix()
             layer = relative.parts[0] if len(relative.parts) > 1 else '.'
-            graph.setdefault(package, set())
+            is_test = name.endswith('_test.go')
+            if is_test and layer != 'lib':
+                continue
+            if not is_test:
+                graph.setdefault(package, set())
             if layer not in ALLOWED:
                 errors.append(f'{relative}: unknown production layer {layer}')
             try:
@@ -204,7 +209,8 @@ def check(root):
                     continue
                 target = imported[len(module) + 1:] if imported != module else '.'
                 target_layer = target.split('/')[0]
-                graph[package].add(target)
+                if not is_test:
+                    graph[package].add(target)
                 declarations.append((relative, target))
                 if target_layer not in ALLOWED:
                     errors.append(f'{relative}: unknown internal root {target_layer}: {imported}')
@@ -228,7 +234,7 @@ def main(argv=None):
     if errors:
         print('\n'.join(errors), file=sys.stderr)
         return 1
-    print('Production Go layers and package cycles pass (all build tags; tests excluded).')
+    print('Go layers and production package cycles pass (all build tags; lib tests checked).')
     return 0
 
 

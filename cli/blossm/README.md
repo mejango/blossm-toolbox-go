@@ -203,7 +203,7 @@ all three are required for internal-token, with no identity override flags. TTL 
 Before explicit execution, load the matching `JWT_SIGNER` and signing-key
 variables from the already-authorized secret source: local PKCS8 P256 private
 PEM, or cloud KMS key and pinned public PEM. They must correspond to the config's
-secret references. `runtime/auth.Open` and `security/token.JWT.Sign` perform the signing;
+secret references. `procedures/server/auth.Open` and `lib/jwt.JWT.Sign` perform the signing;
 the CLI does not fetch secrets or grant signer access. Cloud execution can call
 KMS and requires its existing authority. Do not log or commit stdout tokens.
 Supply the resulting token through the replay command's named bearer environment.

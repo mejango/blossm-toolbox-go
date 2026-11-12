@@ -1,9 +1,9 @@
 # Familiar names and dependency layers
 
 Toolbox restores the JavaScript repository's useful folder vocabulary while
-keeping cohesive Go packages in one framework module. The154 retained package
+keeping cohesive Go packages in one framework module. The 154 retained package
 identities remain in the [capability inventory](capabilities.md); they do not
-become154 separately versioned Go modules. Dia remains an independent application
+become 154 separately versioned Go modules. Dia remains an independent application
 and owns its domain models, policy, runtime and executable examples.
 
 ## Layer direction
@@ -21,6 +21,8 @@ flowchart BT
     L --> M[middleware]
     R --> P[procedures]
     V --> P
+    V --> O
+    V --> M
     O --> P
     M --> P
     P --> C[cli/blossm]
@@ -28,7 +30,7 @@ flowchart BT
 ```
 
 `lib` is the bottom layer. Within the Toolbox module, a lib package may import
-only other lib packages. It must not import procedures, vendors, generic RPC,
+only other lib packages, including imports from lib test files. It must not import procedures, vendors, generic RPC,
 middleware, onchain, CLI or executable composition. Standard-library and external
 module dependencies are separate from this internal-layer rule. This does not
 mean Go `internal/` visibility: application consumers may use public lib APIs.
@@ -38,6 +40,12 @@ library representations. Procedures compose those lower capabilities. CLI owns
 configuration/generation and calls the procedure owners; cmd supplies process
 entrypoints. Application-specific authorization and domain behavior stay in Dia.
 Historical upward edges in the JavaScript tree are not compatibility requirements.
+
+Composition tests outside lib are exempt from layer-edge restrictions. Shared
+composition harnesses live under `tests/`; runtime packages must not import
+that root. Runtime dependency cycles remain forbidden, including cycles through
+shared harness packages. The lib-only rule also applies to lib tests, so tests
+that compose cloud signers and JWTs belong in `tests/signing`.
 
 The owning enforcement is `tools/check_layers.py`, maintained with forbidden-edge
 fixtures by the layer-check owner. Its execution and the full relocation gates
@@ -83,5 +91,5 @@ historical gates do not establish those results.
 The [behavior ledger](behavior-coverage.md) preserves original references and
 assertion identities while resolving their current owners. `DIA_SOURCE` supports
 two-repository documentation verification only, never a Go build dependency.
-Current links and assertions will be refreshed after the final moves. The parent
+Current links and assertions resolve the final hierarchy. The parent
 owns final execution evidence and any publication or merge decision.

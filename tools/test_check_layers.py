@@ -73,9 +73,28 @@ class LayersTest(unittest.TestCase):
                 self.assertTrue(any(f'forbidden {layer} -> tests' in e
                                     for e in check_layers.check(self.root)))
                 (self.root / layer / 'consumer/owner.go').unlink()
-        # Ordinary Go test wiring is omitted even within a runtime directory.
-        self.source('lib/value', ['tests/querytest'], name='integration_test.go')
+        # Composition tests outside lib may use shared harnesses.
+        self.source('procedures/event', ['tests/querytest'], name='integration_test.go')
         self.assertEqual(check_layers.check(self.root), [])
+        self.source('lib/value', ['tests/querytest'], name='integration_test.go')
+        self.assertTrue(any('forbidden lib -> tests' in e for e in check_layers.check(self.root)))
+
+    def test_lib_tests_are_checked_without_production_edges(self):
+        self.source('lib/a')
+        self.source('lib/b', ['lib/a'])
+        self.source('vendors/kms')
+        self.source('lib/a', ['lib/b'], name='owner_test.go')
+        external = self.root / 'lib/a/external_test.go'
+        external.write_text(f'package owner_test\nimport "{MODULE}/lib/a"\n')
+        self.assertEqual(check_layers.check(self.root), [])  # no fake a->a or a->b->a cycle
+        for package_name in ['owner', 'owner_test']:
+            with self.subTest(package_name=package_name):
+                external.write_text(f'//go:build ignored_tag\n\npackage {package_name}\nimport "{MODULE}/vendors/kms"\n')
+                self.assertTrue(any('forbidden lib -> vendors' in e for e in check_layers.check(self.root)))
+        external.write_text(f'package owner_test\nimport "{MODULE}/lib/missing"\n')
+        self.assertTrue(any('no production source: lib/missing' in e for e in check_layers.check(self.root)))
+        self.source('lib/missing', name='only_test.go')
+        self.assertTrue(any('no production source: lib/missing' in e for e in check_layers.check(self.root)))
 
     def test_lexer_import_forms_and_escapes(self):
         source = '''/* import "ignored/a" */
@@ -117,11 +136,13 @@ var quoted = "import \\"also/ignored\\""
         path.write_text('//go:build impossible_tag\n\n'+path.read_text())
         self.assertTrue(any('forbidden lib -> vendors' in e for e in check_layers.check(self.root)))
         path.unlink()
-        for directory, name in [('integration', 'upward_test.go'), ('lib/a', 'upward_test.go'),
+        for directory, name in [('integration', 'upward_test.go'), ('vendors/a', 'upward_test.go'),
                                 ('vendor/ignored', 'ignored.go'), ('.git/ignored', 'ignored.go'),
                                 ('bin/generated', 'ignored.go')]:
             self.source(directory, ['unknown/upward'], name=name)
         self.assertEqual(check_layers.check(self.root), [])
+        self.source('lib/a', ['vendors/a'], name='upward_test.go')
+        self.assertTrue(any('forbidden lib -> vendors' in e for e in check_layers.check(self.root)))
         self.source('integration', ['lib/a'])
         self.assertTrue(any('unknown production layer integration' in e for e in check_layers.check(self.root)))
 
@@ -137,7 +158,7 @@ var quoted = "import \\"also/ignored\\""
         out, err = StringIO(), StringIO()
         with redirect_stdout(out), redirect_stderr(err):
             self.assertEqual(check_layers.main([str(self.root)]), 0)
-        self.assertIn('all build tags; tests excluded', out.getvalue())
+        self.assertIn('all build tags; lib tests checked', out.getvalue())
         self.source('lib/a', ['procedures/b'])
         self.source('procedures/b')
         with redirect_stdout(out), redirect_stderr(err):

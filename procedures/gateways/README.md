@@ -6,7 +6,7 @@ carries authenticated context and claims; request bodies do not supply authority
 `ServiceJWTVerifier[C]` pins a generic token's service kind and exact peer subject.
 
 `Decode`, `Write`, `Wrap` and `NDJSON` are shared HTTP facilities available to
-third-party application adapters. `security/authn` owns shared error categories;
+third-party application adapters. `lib/authentication_error` owns shared error categories;
 application errors must wrap or deliberately specialize those sentinels to retain
 HTTP classification. `PartialResult()` preserves explicitly public recovery data,
 not a claim of commitment. Existing uncertainty and partial-stream rules remain.
