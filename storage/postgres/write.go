@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"sort"
 
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/storage/internal/queryindex"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/storage/internal/queryindex"
 )
 
 func (t *transaction) LockRoots(ctx context.Context, roots []eventstore.Root) error {

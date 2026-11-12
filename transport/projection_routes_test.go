@@ -10,11 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	"blossm.local/backend/dia"
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/projection"
-	"blossm.local/backend/rpc"
-	"blossm.local/backend/view"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/projection"
+	"github.com/mejango/blossm-toolbox-go/rpc"
+	"github.com/mejango/blossm-toolbox-go/view"
 )
 
 type projectionAggregateFn func(context.Context, eventstore.Root) (eventstore.Aggregate, error)

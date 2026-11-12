@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"blossm.local/backend/dia"
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/transport"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/transport"
 )
 
 type unusedBackend struct{ eventstore.Backend }

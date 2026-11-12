@@ -14,13 +14,13 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"blossm.local/backend/dia"
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/evm"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/evm"
 )
 
 type fixtureRPC struct {

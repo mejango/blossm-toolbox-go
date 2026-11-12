@@ -3,10 +3,6 @@
 package integration
 
 import (
-	"blossm.local/backend/audit"
-	"blossm.local/backend/command"
-	"blossm.local/backend/rpc"
-	"blossm.local/backend/transport"
 	"bytes"
 	"context"
 	"crypto/ecdsa"
@@ -15,6 +11,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/mejango/blossm-toolbox-go/audit"
+	"github.com/mejango/blossm-toolbox-go/command"
+	"github.com/mejango/blossm-toolbox-go/rpc"
+	"github.com/mejango/blossm-toolbox-go/transport"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -23,9 +23,9 @@ import (
 	"testing"
 	"time"
 
-	"blossm.local/backend/eventstore"
-	mongoStore "blossm.local/backend/storage/mongo"
-	"blossm.local/backend/storage/postgres"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	mongoStore "github.com/mejango/blossm-toolbox-go/storage/mongo"
+	"github.com/mejango/blossm-toolbox-go/storage/postgres"
 )
 
 type counter struct{}

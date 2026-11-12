@@ -1,0 +1,29 @@
+{
+  "module": "github.com/mejango/blossm-toolbox-go",
+  "toolchain": "go1.27.4",
+  "publication_changes": [
+    "behavior-preserving diaruntime extraction",
+    "public module/import paths",
+    "standalone repository CI and workflow resources"
+  ],
+  "suites": {
+    "unit": {
+      "passing_results": 1008,
+      "raw_log": "verification-logs/publication-unit.jsonl.gz",
+      "raw_sha256": "1971a4693a373669da910b082d44b90141b19fc17ede206fadd817fa3ce337a5"
+    },
+    "race": {
+      "passing_results": 1008,
+      "raw_log": "verification-logs/publication-race.jsonl.gz",
+      "raw_sha256": "764ab232dd60354dd5024a778f7114fb33f09d6c4fba76247537f02ce9e90453"
+    }
+  },
+  "other_checks": {
+    "vet": "pass",
+    "mod_verify": "pass",
+    "tidy_diff": "pass",
+    "extraction_race_vet": "pass",
+    "container_both_http_lifecycles": "pass6.139s",
+    "container_image": "sha256:fb91d1dd72ee1015a9713ecab1ab205410c8e07a2b6a976f5be115a2340def99"
+  }
+}

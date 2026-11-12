@@ -273,10 +273,10 @@ func TestScaffoldsCompileInOneModule(t *testing.T) {
 import (
  "context"
  "testing"
- "blossm.local/backend/job"
- "blossm.local/backend/projection"
- "blossm.local/backend/view"
- "blossm.local/backend/serviceapp"
+ "github.com/mejango/blossm-toolbox-go/job"
+ "github.com/mejango/blossm-toolbox-go/projection"
+ "github.com/mejango/blossm-toolbox-go/view"
+ "github.com/mejango/blossm-toolbox-go/serviceapp"
  g "fixture.test/gateway"
  j "fixture.test/job"
  p "fixture.test/projection"
@@ -301,7 +301,7 @@ func TestGeneratedOwnerContracts(t *testing.T){
 	}
 }
 func fmtModule(original string) string {
-	return "module fixture.test\n\ngo 1.26.0\n\nrequire blossm.local/backend v0.0.0\nreplace blossm.local/backend => " + strconvQuote(original) + "\n"
+	return "module fixture.test\n\ngo 1.26.0\n\nrequire github.com/mejango/blossm-toolbox-go v0.0.0\nreplace github.com/mejango/blossm-toolbox-go => " + strconvQuote(original) + "\n"
 }
 func strconvQuote(s string) string { b, _ := json.Marshal(s); return string(b) }
 

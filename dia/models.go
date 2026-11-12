@@ -1,6 +1,6 @@
 package dia
 
-import "blossm.local/backend/eventstore"
+import "github.com/mejango/blossm-toolbox-go/eventstore"
 
 // Ref uses the same complete identity as persisted events.
 type Ref = eventstore.Root

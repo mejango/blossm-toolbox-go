@@ -1,10 +1,10 @@
 package cli
 
 import (
-	"blossm.local/backend/eventstore"
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 	"reflect"
 	"testing"
 )

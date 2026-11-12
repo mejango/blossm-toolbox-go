@@ -16,10 +16,10 @@ import (
 	"testing"
 	"time"
 
-	"blossm.local/backend/eventstore"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 const awsTestTopic = "arn:aws:sns:us-east-1:123456789012:events"

@@ -1,0 +1,54 @@
+name: Verify Go backend
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432/blossm?sslmode=disable
+      REDIS_ADDR: 127.0.0.1:6379
+      MONGODB_URI: mongodb://127.0.0.1:27017/?replicaSet=rs0&directConnection=true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.4'
+          cache: true
+          cache-dependency-path: go.sum
+      - name: Start disposable native databases
+        run: docker compose -f deploy/compose.integration.json up -d --wait
+      - name: Initialize Mongo replica set and wait for writable primary
+        run: |
+          docker compose -f deploy/compose.integration.json exec -T mongo mongosh --quiet --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"localhost:27017"}]})'
+          for attempt in $(seq 1 60); do
+            if docker compose -f deploy/compose.integration.json exec -T mongo mongosh --quiet --eval 'quit(db.hello().isWritablePrimary ? 0 : 1)'; then exit 0; fi
+            sleep 1
+          done
+          echo 'MongoDB did not become writable' >&2
+          exit 1
+      - name: Download pinned module dependencies
+        run: go mod download
+      - name: Formatting, static checks, unit, race, native database and config gates
+        run: make fmt-check vet test race native native-redis modules config-check build
+      - name: Vulnerability gate
+        run: make vuln
+      - name: Container build and CLI execution
+        run: make container
+      - name: Verify module lock did not drift
+        run: git diff --exit-code -- go.mod go.sum
+      - name: Database logs
+        if: failure()
+        run: docker compose -f deploy/compose.integration.json logs
+      - name: Remove disposable databases
+        if: always()
+        run: docker compose -f deploy/compose.integration.json down -v

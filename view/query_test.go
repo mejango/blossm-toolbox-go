@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 // This fixture deliberately returns untrusted scope rows. View must enforce

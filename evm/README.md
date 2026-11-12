@@ -7,7 +7,7 @@ Juicebox product workflows and shop workflows are deferred.
 
 ## Dependency and verification boundary
 
-Parent module: `blossm.local/backend`. Add the sole direct dependency
+Parent module: `github.com/mejango/blossm-toolbox-go`. Add the sole direct dependency
 `github.com/ethereum/go-ethereum v1.17.10` in the parent module, then resolve its
 transitive modules with `go mod tidy`. The EVM work does not edit `go.mod`.
 The [official stable release](https://github.com/ethereum/go-ethereum/releases/tag/v1.17.10)

@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"blossm.local/backend/dia"
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/evm"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/evm"
 )
 
 type Authenticator interface {

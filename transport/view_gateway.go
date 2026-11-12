@@ -10,11 +10,11 @@ import (
 	"net/url"
 	"strings"
 
-	"blossm.local/backend/dia"
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/fact"
-	"blossm.local/backend/rpc"
-	"blossm.local/backend/view"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/fact"
+	"github.com/mejango/blossm-toolbox-go/rpc"
+	"github.com/mejango/blossm-toolbox-go/view"
 )
 
 // ViewComposite callbacks are trusted application code. They must use the

@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 // Recover is best-effort at startup and after commitment; publication failures

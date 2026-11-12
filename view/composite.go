@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 // ComponentReader is a trusted read adapter. It must apply scope to both rows

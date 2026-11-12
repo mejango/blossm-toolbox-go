@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/storage/postgres"
 	"github.com/jackc/pgx/v5"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/storage/postgres"
 )
 
 func nativeStore(t *testing.T) (*Store, context.Context) {

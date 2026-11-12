@@ -1,13 +1,13 @@
 package dia
 
 import (
-	"blossm.local/backend/eventstore"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 	"strings"
 	"testing"
 	"time"

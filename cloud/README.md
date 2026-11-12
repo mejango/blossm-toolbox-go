@@ -1,7 +1,7 @@
 # Cloud adapters
 
 Provider-specific Go packages for the retained Blossm cloud operations. They
-belong to the parent `blossm.local/backend` module, Go 1.26 or newer. There is no
+belong to the parent `github.com/mejango/blossm-toolbox-go` module, Go 1.26 or newer. There is no
 shared cloud interface: applications compose the operations they consume.
 SDK construction and credential configuration are explicit application concerns.
 Importing these packages does not discover credentials or contact a provider.
@@ -107,7 +107,7 @@ No parent `go.mod` or `go.sum` was edited by this work.
 ## Combined verification, 2026-11-12
 
 Both packages were copied into `/tmp/blossm-cloud-verify-jnot20si`, a temporary
-`blossm.local/backend` module with `go 1.26.0`. Its `go.mod` and `go.sum` contain
+`github.com/mejango/blossm-toolbox-go` module with `go 1.26.0`. Its `go.mod` and `go.sum` contain
 the complete resolved cloud dependency set. Go 1.27.1 on darwin/arm64 ran:
 
 ```sh

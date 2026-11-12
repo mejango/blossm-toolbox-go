@@ -1,10 +1,10 @@
 package main
 
 import (
-	"blossm.local/backend/dia"
-	"blossm.local/backend/eventstore"
 	"context"
 	"errors"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 	"io"
 	"net"
 	"net/http"

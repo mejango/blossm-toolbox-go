@@ -3,15 +3,15 @@
 package dia
 
 import (
-	"blossm.local/backend/eventstore"
-	mongoStore "blossm.local/backend/storage/mongo"
-	"blossm.local/backend/storage/postgres"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	mongoStore "github.com/mejango/blossm-toolbox-go/storage/mongo"
+	"github.com/mejango/blossm-toolbox-go/storage/postgres"
 	"os"
 	"strings"
 	"testing"

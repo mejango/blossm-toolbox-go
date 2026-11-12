@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
-	"blossm.local/backend/command"
-	"blossm.local/backend/dia"
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/command"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 // DelegatedCommandAuthorizer is installed on a CommandClient used inside an

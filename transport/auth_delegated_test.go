@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"blossm.local/backend/command"
-	"blossm.local/backend/dia"
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/rpc"
+	"github.com/mejango/blossm-toolbox-go/command"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/rpc"
 )
 
 func delegatedFixture(t *testing.T) (dia.JWT, *dia.Service, *authState, command.Request) {

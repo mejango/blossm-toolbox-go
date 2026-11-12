@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 type publishFunc func(context.Context, eventstore.Publication) error

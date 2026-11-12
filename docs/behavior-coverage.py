@@ -4,10 +4,11 @@ import argparse
 import hashlib
 import json
 import re
+import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKSPACE = ROOT.parent
+WORKSPACE = Path(os.environ.get("BLOSSM_REFERENCE_WORKSPACE", str(ROOT.parent)))
 REF = WORKSPACE / 'tasks/worktrees/go-reference'
 FAMILIES = []
 
@@ -199,8 +200,8 @@ def build():
 def markdown(ledger):
     lines=['# Retained behavior coverage','', '**Current verification status: '+ledger['status']+'.** '+ledger['required_completion'], '',
            'This ledger maps observable JS contracts to actual Go test assertions. It is not a package-count or passing-suite equivalence claim. The latest bounded independent review and execution checkpoint are recorded above and in capabilities.json; the original broad completion statement was superseded during remediation.', '',
-           'The [machine matrix](behavior-coverage.json) includes every retained package assignment, all indexed JS test call-sites/assertion lines, selected Go test names/assertion predicates and explicit unresolved selectors. Run `python3 docs/behavior-coverage.py --check` from the module root to detect stale anchors. `--refresh` rebuilds source snapshots; it does not run tests or mark gaps resolved.', '',
-           'The pinned Toolbox reference is `'+ledger['reference_commit']+'`. Dia test references use the preserved `../dia` source with file hashes. JB/shop and Relayr payment test files are listed as exclusions; direct custodial-wallet tests remain included. Literal JS call-sites are not expanded parameterized case counts.', '',
+           'The [machine matrix](behavior-coverage.json) includes every retained package assignment, all indexed JS test call-sites/assertion lines, selected Go test names/assertion predicates and explicit unresolved selectors. Set `BLOSSM_REFERENCE_WORKSPACE` to the preserved historical workspace, then run `python3 docs/behavior-coverage.py --check` from the module root to detect stale anchors. `--refresh` rebuilds source snapshots; it does not run tests or mark gaps resolved.', '',
+           'The pinned Toolbox reference is `'+ledger['reference_commit']+'`. Dia test references use the preserved reference workspace Dia source with file hashes. JB/shop and Relayr payment test files are listed as exclusions; direct custodial-wallet tests remain included. Literal JS call-sites are not expanded parameterized case counts.', '',
            'Each row has a specific contract and Go predicate excerpts in JSON. `assertions-mapped` is source evidence only. `deliberate-contract-change` names a fresh internal contract, not permission to drop a retained behavior. `remediation-active` and `missing-assertion` remain incomplete. The current checkpoint above governs execution status. Row notes preserve contract boundaries and historical scoped reports; they do not override the current gate state.', '',
            '| Behavior family | Observable contract | Go assertion anchors | Disposition / contract boundaries and checkpoint notes |','| --- | --- | --- | --- |']
     for f in ledger['families']:

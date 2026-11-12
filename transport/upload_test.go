@@ -1,12 +1,12 @@
 package transport
 
 import (
-	cloudgcp "blossm.local/backend/cloud/gcp"
 	"bytes"
 	"cloud.google.com/go/storage"
 	"context"
 	"encoding/json"
 	"errors"
+	cloudgcp "github.com/mejango/blossm-toolbox-go/cloud/gcp"
 	"google.golang.org/api/option"
 	"io"
 	"mime"
@@ -16,9 +16,9 @@ import (
 	"strings"
 	"testing"
 
-	cloudaws "blossm.local/backend/cloud/aws"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	cloudaws "github.com/mejango/blossm-toolbox-go/cloud/aws"
 )
 
 func uploadBody(t *testing.T, fields map[string]string, files map[string]string) ([]byte, string) {

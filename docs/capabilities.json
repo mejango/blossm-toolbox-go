@@ -3343,7 +3343,7 @@
       "implementation": {
         "status": "stdlib-replacement",
         "source_files": [
-          "cmd/dia/main.go",
+          "diaruntime/runtime.go",
           "transport/http.go",
           "serviceapp/app.go",
           "serviceapp/document.go",
@@ -4861,7 +4861,7 @@
       "implementation": {
         "status": "stdlib-replacement",
         "source_files": [
-          "cmd/dia/main.go",
+          "diaruntime/runtime.go",
           "runtimepub/worker.go"
         ],
         "test_files": [
@@ -7593,7 +7593,7 @@
       "implementation": {
         "status": "stdlib-replacement",
         "source_files": [
-          "cmd/dia/main.go",
+          "diaruntime/runtime.go",
           "transport/http.go",
           "serviceapp/app.go",
           "serviceapp/document.go",

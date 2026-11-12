@@ -9,7 +9,7 @@ import (
 	"strings"
 	"unicode"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 type Headers struct {

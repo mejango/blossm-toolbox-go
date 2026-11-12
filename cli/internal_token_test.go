@@ -16,12 +16,12 @@ import (
 	"strings"
 	"testing"
 
-	"blossm.local/backend/dia"
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/projection"
-	"blossm.local/backend/runtimeauth"
-	"blossm.local/backend/serviceapp"
-	"blossm.local/backend/transport"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/projection"
+	"github.com/mejango/blossm-toolbox-go/runtimeauth"
+	"github.com/mejango/blossm-toolbox-go/serviceapp"
+	"github.com/mejango/blossm-toolbox-go/transport"
 )
 
 func internalConfig(t *testing.T, c Config) string {

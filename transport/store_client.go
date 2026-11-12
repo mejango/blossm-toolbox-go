@@ -1,12 +1,12 @@
 package transport
 
 import (
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/fact"
-	"blossm.local/backend/rpc"
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/fact"
+	"github.com/mejango/blossm-toolbox-go/rpc"
 	"net/http"
 	"net/url"
 )

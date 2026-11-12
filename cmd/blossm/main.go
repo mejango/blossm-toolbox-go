@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"os/signal"
 
-	"blossm.local/backend/cli"
+	"github.com/mejango/blossm-toolbox-go/cli"
 )
 
 func main() {

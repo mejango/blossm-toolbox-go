@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 // PublicationAdapter binds a verified, persisted source event to Play. Backend

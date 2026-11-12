@@ -13,13 +13,13 @@ import (
 	"syscall"
 	"time"
 
-	"blossm.local/backend/dia"
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/runtimeauth"
-	"blossm.local/backend/runtimepub"
-	"blossm.local/backend/runtimequeue"
-	"blossm.local/backend/serviceapp"
-	"blossm.local/backend/transport"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/runtimeauth"
+	"github.com/mejango/blossm-toolbox-go/runtimepub"
+	"github.com/mejango/blossm-toolbox-go/runtimequeue"
+	"github.com/mejango/blossm-toolbox-go/serviceapp"
+	"github.com/mejango/blossm-toolbox-go/transport"
 )
 
 func run(ctx context.Context) error {

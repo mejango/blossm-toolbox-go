@@ -1,5 +1,9 @@
 # Go verification record
 
+The records below describe the verified workspace snapshot before its public
+module-path relocation. See [publication verification](PUBLICATION.md) for
+checks of this standalone repository and the pinned Dia consumer.
+
 Final frozen-source checkpoint, 2026-11-12: the retained Go framework and Dia
 scope is implemented and all required local gates pass on Go1.27.4. The original
 completion claim was reopened after independent review; its findings were fixed
@@ -151,7 +155,7 @@ docker compose -f deploy/compose.integration.json logs
 docker compose -f deploy/compose.integration.json down -v
 ```
 
-The real repository workflow is [go-verify.yml](../../.github/workflows/go-verify.yml),
+The real repository workflow is [go-verify.yml](../.github/workflows/go-verify.yml),
 with `blossm-go` working directory and `blossm-go/go.sum` cache path. This document
 does not claim a remote GitHub Actions run. Original Toolbox/Dia repositories and
 user artifacts remain preserved. JavaScript reference-test counts are not Go-test

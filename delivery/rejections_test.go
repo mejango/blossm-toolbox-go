@@ -15,12 +15,12 @@ import (
 	"syscall"
 	"testing"
 
-	cloudaws "blossm.local/backend/cloud/aws"
-	"blossm.local/backend/command"
-	"blossm.local/backend/eventstore"
 	sdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	cloudaws "github.com/mejango/blossm-toolbox-go/cloud/aws"
+	"github.com/mejango/blossm-toolbox-go/command"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 // Journal fixture implements only the transaction primitives exercised here.

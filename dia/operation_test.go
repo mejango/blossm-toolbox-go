@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 // Controls only the append/lookup boundary; real domain reducers commit the batch.

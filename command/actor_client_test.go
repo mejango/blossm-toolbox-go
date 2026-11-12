@@ -9,10 +9,10 @@ import (
 	"sync"
 	"testing"
 
-	"blossm.local/backend/command"
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/rpc"
-	"blossm.local/backend/transport"
+	"github.com/mejango/blossm-toolbox-go/command"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/rpc"
+	"github.com/mejango/blossm-toolbox-go/transport"
 )
 
 type actorQueue struct {

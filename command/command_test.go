@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/rpc"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/rpc"
 )
 
 // The fixture supplies the transaction primitives used by the real Store.Append;

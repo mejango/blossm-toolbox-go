@@ -1,4 +1,9 @@
-# Blossm Go backend
+# Blossm Toolbox Go
+
+Public module: `github.com/mejango/blossm-toolbox-go`. The standalone Dia consumer
+is [mejango/dia-go](https://github.com/mejango/dia-go). See
+[repository ownership and publication verification](docs/PUBLICATION.md).
+
 
 **Verified locally:** retained scope implemented, review findings remediated, and all required local gates pass. The final bounded Claude Fable5.2 review found no blocker in the reviewed changes. See [verification](docs/VERIFICATION.md) and [review closure](docs/reviews/fable-2026-11-12/closure.md).
 

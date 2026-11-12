@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 func TestTermsMatchSharedTraversal(t *testing.T) {

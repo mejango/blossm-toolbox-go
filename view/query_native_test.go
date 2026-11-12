@@ -3,11 +3,11 @@
 package view
 
 import (
-	mongoBackend "blossm.local/backend/storage/mongo"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	mongoBackend "github.com/mejango/blossm-toolbox-go/storage/mongo"
 	driver "go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"net/url"
@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 func TestNativeViewMutateWhereAtomicSelection(t *testing.T) {

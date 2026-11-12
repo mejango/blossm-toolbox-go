@@ -7,11 +7,11 @@ import (
 	"log/slog"
 	"time"
 
-	"blossm.local/backend/eventstore"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	snsTypes "github.com/aws/aws-sdk-go-v2/service/sns/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 type SNSPublisher interface {

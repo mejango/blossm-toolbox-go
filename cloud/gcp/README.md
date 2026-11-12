@@ -67,7 +67,7 @@ The wire tests instantiate these exact clients against local servers.
 ```go
 import (
     "context"
-    "blossm.local/backend/cloud/gcp"
+    "github.com/mejango/blossm-toolbox-go/cloud/gcp"
     tasks "cloud.google.com/go/cloudtasks/apiv2"
     kms "cloud.google.com/go/kms/apiv1"
     logging "cloud.google.com/go/logging/apiv2"

@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"blossm.local/backend/eventstore"
 	"github.com/jackc/pgx/v5"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 type transaction struct {

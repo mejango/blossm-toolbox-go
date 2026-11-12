@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strings"
 
-	"blossm.local/backend/command"
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/rpc"
+	"github.com/mejango/blossm-toolbox-go/command"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/rpc"
 )
 
 // CommandClient calls an explicitly addressed service without retries. Target is

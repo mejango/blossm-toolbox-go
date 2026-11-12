@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"testing"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 type failingViewBackend struct{ eventstore.Backend }

@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"blossm.local/backend/diaruntime"
+	"github.com/mejango/blossm-toolbox-go/diaruntime"
 )
 
 func main() {

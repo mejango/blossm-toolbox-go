@@ -10,10 +10,10 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"blossm.local/backend/eventstore"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 // RetryConfig bounds Update retries. MaxAttempts includes the first attempt;

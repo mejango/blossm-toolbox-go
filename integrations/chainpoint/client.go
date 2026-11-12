@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"regexp"
 
-	"blossm.local/backend/integrations/internal/httpwire"
+	"github.com/mejango/blossm-toolbox-go/integrations/internal/httpwire"
 )
 
 type Client struct{ wire *httpwire.Client }

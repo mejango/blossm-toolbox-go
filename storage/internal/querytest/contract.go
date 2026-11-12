@@ -12,7 +12,7 @@ import (
 	"sort"
 	"testing"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 func must(t *testing.T, err error) {

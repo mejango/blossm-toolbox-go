@@ -5,7 +5,7 @@ import (
 	"io"
 	"log/slog"
 
-	"blossm.local/backend/delivery"
+	"github.com/mejango/blossm-toolbox-go/delivery"
 )
 
 func runtimeLogger(output io.Writer) *slog.Logger {

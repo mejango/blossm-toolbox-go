@@ -3,11 +3,11 @@
 package postgres
 
 import (
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/storage/internal/queryindex"
-	"blossm.local/backend/storage/internal/querytest"
 	"bytes"
 	"encoding/json"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/storage/internal/queryindex"
+	"github.com/mejango/blossm-toolbox-go/storage/internal/querytest"
 	"testing"
 )
 

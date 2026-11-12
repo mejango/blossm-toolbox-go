@@ -3,9 +3,9 @@
 package dia
 
 import (
-	"blossm.local/backend/eventstore"
 	"context"
 	"errors"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 	"testing"
 )
 

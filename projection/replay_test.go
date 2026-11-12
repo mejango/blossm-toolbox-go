@@ -7,7 +7,7 @@ import (
 	"sort"
 	"testing"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 type rootsFn func(context.Context, func(eventstore.Root) error) error

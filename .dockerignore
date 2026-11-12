@@ -5,3 +5,8 @@
 
 # Default generated deployment plans are not image inputs.
 /deploy/generated/
+
+.git/
+.DS_Store
+.env
+.env.local

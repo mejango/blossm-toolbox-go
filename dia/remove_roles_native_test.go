@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"blossm.local/backend/eventstore"
-	mongoStore "blossm.local/backend/storage/mongo"
-	"blossm.local/backend/storage/postgres"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	mongoStore "github.com/mejango/blossm-toolbox-go/storage/mongo"
+	"github.com/mejango/blossm-toolbox-go/storage/postgres"
 )
 
 func TestNativeRemoveRolesRequestRecovery(t *testing.T) {

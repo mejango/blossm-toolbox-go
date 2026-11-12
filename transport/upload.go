@@ -11,11 +11,11 @@ import (
 	"net/http"
 	"strings"
 
-	cloudaws "blossm.local/backend/cloud/aws"
-	cloudgcp "blossm.local/backend/cloud/gcp"
-	"blossm.local/backend/dia"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	cloudaws "github.com/mejango/blossm-toolbox-go/cloud/aws"
+	cloudgcp "github.com/mejango/blossm-toolbox-go/cloud/gcp"
+	"github.com/mejango/blossm-toolbox-go/dia"
 )
 
 type UploadLimits struct {

@@ -7,9 +7,9 @@ import (
 	"io"
 	"net/http"
 
-	"blossm.local/backend/command"
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/projection"
+	"github.com/mejango/blossm-toolbox-go/command"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/projection"
 )
 
 type Consumer struct {

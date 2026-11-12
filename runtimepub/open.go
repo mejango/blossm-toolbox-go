@@ -5,11 +5,11 @@ import (
 	"errors"
 	"os"
 
-	"blossm.local/backend/eventstore"
 	pubsub "cloud.google.com/go/pubsub/v2/apiv1"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 // Open owns credential discovery and construction. Tests inject existing SDK

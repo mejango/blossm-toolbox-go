@@ -18,11 +18,11 @@ import (
 	"strconv"
 	"strings"
 
-	"blossm.local/backend/dia"
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/projection"
-	"blossm.local/backend/rpc"
-	"blossm.local/backend/transport"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/projection"
+	"github.com/mejango/blossm-toolbox-go/rpc"
+	"github.com/mejango/blossm-toolbox-go/transport"
 )
 
 // Invocation is executed without a shell. Input is never serialized into plans.

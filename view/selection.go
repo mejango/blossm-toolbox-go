@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 // MutateWhere selects all matching owned rows and commits their mutations in

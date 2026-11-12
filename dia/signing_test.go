@@ -14,13 +14,13 @@ import (
 	"testing"
 	"time"
 
-	cloudaws "blossm.local/backend/cloud/aws"
-	cloudgcp "blossm.local/backend/cloud/gcp"
 	pb "cloud.google.com/go/kms/apiv1/kmspb"
 	sdk "github.com/aws/aws-sdk-go-v2/aws"
 	awskms "github.com/aws/aws-sdk-go-v2/service/kms"
 	awstypes "github.com/aws/aws-sdk-go-v2/service/kms/types"
 	"github.com/googleapis/gax-go/v2"
+	cloudaws "github.com/mejango/blossm-toolbox-go/cloud/aws"
+	cloudgcp "github.com/mejango/blossm-toolbox-go/cloud/gcp"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 

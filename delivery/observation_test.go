@@ -7,14 +7,14 @@ import (
 	"sync/atomic"
 	"testing"
 
-	cloudaws "blossm.local/backend/cloud/aws"
-	"blossm.local/backend/cloud/gcp"
-	"blossm.local/backend/command"
-	"blossm.local/backend/eventstore"
 	tasks "cloud.google.com/go/cloudtasks/apiv2/cloudtaskspb"
 	sdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	cloudaws "github.com/mejango/blossm-toolbox-go/cloud/aws"
+	"github.com/mejango/blossm-toolbox-go/cloud/gcp"
+	"github.com/mejango/blossm-toolbox-go/command"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 func TestAcceptanceExposesStableEnvelopeID(t *testing.T) {

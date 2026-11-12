@@ -23,7 +23,7 @@ func (c *Client) Open(ctx context.Context, method, path string, query url.Values
     body any, headers http.Header) (*http.Response, error)
 ```
 
-Import `blossm.local/backend/rpc`. Zero options use `DefaultTimeout` (30 seconds)
+Import `github.com/mejango/blossm-toolbox-go/rpc`. Zero options use `DefaultTimeout` (30 seconds)
 and `DefaultMaxBodyBytes` (8 MiB); negative values are rejected. The byte bound
 applies to response bytes exposed by the transport, including decompressed bytes
 with the standard transport. Exactly the limit is allowed; reading beyond it

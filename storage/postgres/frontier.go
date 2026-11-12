@@ -1,10 +1,10 @@
 package postgres
 
 import (
-	"blossm.local/backend/eventstore"
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 	"sort"
 )
 

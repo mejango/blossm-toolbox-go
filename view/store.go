@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 // Scope is supplied by trusted application composition, never by an untrusted

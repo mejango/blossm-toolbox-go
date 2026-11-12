@@ -1,12 +1,12 @@
 package dia
 
 import (
-	"blossm.local/backend/eventstore"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 type operationState struct {

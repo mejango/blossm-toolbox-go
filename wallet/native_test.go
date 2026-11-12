@@ -19,14 +19,14 @@ import (
 	"testing"
 	"time"
 
-	"blossm.local/backend/dia"
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/evm"
-	mongoStore "blossm.local/backend/storage/mongo"
-	"blossm.local/backend/storage/postgres"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/evm"
+	mongoStore "github.com/mejango/blossm-toolbox-go/storage/mongo"
+	"github.com/mejango/blossm-toolbox-go/storage/postgres"
 )
 
 type nativeFixture struct {

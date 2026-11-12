@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	driver "go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"

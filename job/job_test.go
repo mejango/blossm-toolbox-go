@@ -1,10 +1,10 @@
 package job
 
 import (
-	"blossm.local/backend/rpc"
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/mejango/blossm-toolbox-go/rpc"
 	"net/http"
 	"net/http/httptest"
 	"testing"

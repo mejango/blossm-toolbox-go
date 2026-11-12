@@ -5,3 +5,8 @@
 
 # Default offline deployment generator output; checked examples remain visible.
 /deploy/generated/
+
+.git/
+.DS_Store
+.env
+.env.local

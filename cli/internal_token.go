@@ -9,8 +9,8 @@ import (
 	"io"
 	"time"
 
-	"blossm.local/backend/dia"
-	"blossm.local/backend/runtimeauth"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/runtimeauth"
 )
 
 // internalToken issues application service authority, not Google invocation or

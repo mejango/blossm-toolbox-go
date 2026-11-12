@@ -1,11 +1,11 @@
 package audit
 
 import (
-	"blossm.local/backend/eventstore"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 	"testing"
 )
 

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 // Faults at each storage boundary must retain their classification, including

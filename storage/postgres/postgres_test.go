@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"blossm.local/backend/eventstore"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 type commitError struct {

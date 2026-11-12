@@ -9,12 +9,12 @@ import (
 	"net/url"
 	"os"
 
-	"blossm.local/backend/dia"
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/evm"
-	"blossm.local/backend/runtimeenv"
-	"blossm.local/backend/wallet"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/evm"
+	"github.com/mejango/blossm-toolbox-go/runtimeenv"
+	"github.com/mejango/blossm-toolbox-go/wallet"
 )
 
 func walletHandler(ctx context.Context, app *dia.Service, store *eventstore.Store) (http.Handler, func(), error) {

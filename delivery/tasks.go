@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"blossm.local/backend/cloud/gcp"
-	"blossm.local/backend/command"
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/projection"
+	"github.com/mejango/blossm-toolbox-go/cloud/gcp"
+	"github.com/mejango/blossm-toolbox-go/command"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/projection"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

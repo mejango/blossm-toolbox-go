@@ -1,7 +1,6 @@
 package dia
 
 import (
-	"blossm.local/backend/eventstore"
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
@@ -11,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 	"math/big"
 	"time"
 )

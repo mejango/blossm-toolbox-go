@@ -18,18 +18,18 @@ import (
 	"testing"
 	"time"
 
-	"blossm.local/backend/cloud/gcp"
-	"blossm.local/backend/command"
-	"blossm.local/backend/delivery"
-	"blossm.local/backend/dia"
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/fact"
-	"blossm.local/backend/projection"
-	"blossm.local/backend/rpc"
-	"blossm.local/backend/serviceapp"
-	"blossm.local/backend/transport"
 	tasks "cloud.google.com/go/cloudtasks/apiv2/cloudtaskspb"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/mejango/blossm-toolbox-go/cloud/gcp"
+	"github.com/mejango/blossm-toolbox-go/command"
+	"github.com/mejango/blossm-toolbox-go/delivery"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/fact"
+	"github.com/mejango/blossm-toolbox-go/projection"
+	"github.com/mejango/blossm-toolbox-go/rpc"
+	"github.com/mejango/blossm-toolbox-go/serviceapp"
+	"github.com/mejango/blossm-toolbox-go/transport"
 )
 
 type taskMailbox struct {

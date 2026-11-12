@@ -10,13 +10,13 @@ import (
 	"errors"
 	"os"
 
-	cloudaws "blossm.local/backend/cloud/aws"
-	cloudgcp "blossm.local/backend/cloud/gcp"
-	"blossm.local/backend/dia"
-	"blossm.local/backend/runtimeenv"
 	gcpkms "cloud.google.com/go/kms/apiv1"
 	"github.com/aws/aws-sdk-go-v2/config"
 	awskms "github.com/aws/aws-sdk-go-v2/service/kms"
+	cloudaws "github.com/mejango/blossm-toolbox-go/cloud/aws"
+	cloudgcp "github.com/mejango/blossm-toolbox-go/cloud/gcp"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/runtimeenv"
 )
 
 // Open selects one signing owner. Verification uses configured trust and never

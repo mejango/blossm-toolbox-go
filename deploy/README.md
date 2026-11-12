@@ -86,7 +86,7 @@ replica set and fails on missing readiness, tests, formatting, vet, vulnerabilit
 configuration or container checks. No job deploys or publishes anything.
 
 The active workflow definition is at the actual repository root:
-[.github/workflows/go-verify.yml](../../.github/workflows/go-verify.yml).
+[.github/workflows/go-verify.yml](../.github/workflows/go-verify.yml).
 Its push/pull-request filters cover `blossm-go/**` and the workflow itself, and
 manual dispatch is available. All run steps use `blossm-go` as working directory;
 setup-go caches against `blossm-go/go.sum`. The inactive nested duplicate was

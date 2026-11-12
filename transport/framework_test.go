@@ -1,15 +1,15 @@
 package transport
 
 import (
-	"blossm.local/backend/command"
-	"blossm.local/backend/dia"
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/fact"
-	"blossm.local/backend/rpc"
-	"blossm.local/backend/view"
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/mejango/blossm-toolbox-go/command"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/fact"
+	"github.com/mejango/blossm-toolbox-go/rpc"
+	"github.com/mejango/blossm-toolbox-go/view"
 	"net/http"
 	"net/http/httptest"
 	"strings"

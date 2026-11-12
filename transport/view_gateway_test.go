@@ -13,11 +13,11 @@ import (
 	"sync"
 	"testing"
 
-	"blossm.local/backend/dia"
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/fact"
-	"blossm.local/backend/rpc"
-	"blossm.local/backend/view"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/fact"
+	"github.com/mejango/blossm-toolbox-go/rpc"
+	"github.com/mejango/blossm-toolbox-go/view"
 )
 
 // Transactional fixture exercises the real view owner and transport together.

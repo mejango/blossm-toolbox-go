@@ -12,13 +12,13 @@ import (
 	"sync"
 	"time"
 
-	"blossm.local/backend/dia"
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/runtimeauth"
-	"blossm.local/backend/runtimeenv"
-	"blossm.local/backend/runtimepub"
-	"blossm.local/backend/transport"
-	"blossm.local/backend/wallet"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/runtimeauth"
+	"github.com/mejango/blossm-toolbox-go/runtimeenv"
+	"github.com/mejango/blossm-toolbox-go/runtimepub"
+	"github.com/mejango/blossm-toolbox-go/transport"
+	"github.com/mejango/blossm-toolbox-go/wallet"
 )
 
 // Run owns the Dia server and its clients until shutdown or failure.

@@ -1,11 +1,11 @@
 package dia
 
 import (
-	"blossm.local/backend/eventstore"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 	"net/mail"
 	"strings"
 )

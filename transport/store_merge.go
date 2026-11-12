@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 var ErrStoreMergeBudget = errors.New("sorted aggregate record budget exceeded")

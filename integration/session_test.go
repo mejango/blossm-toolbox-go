@@ -13,8 +13,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"blossm.local/backend/dia"
-	"blossm.local/backend/transport"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/transport"
 )
 
 func TestDiaSessionFlow(t *testing.T) {

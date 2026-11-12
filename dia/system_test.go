@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 // This consumer fake uses the real reducers and raw last-event versions. It

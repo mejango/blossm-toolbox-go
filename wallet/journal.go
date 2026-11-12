@@ -8,9 +8,9 @@ import (
 	"math"
 	"strconv"
 
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/evm"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/evm"
 )
 
 // Journal commits immutable signed bytes and the account nonce frontier in one

@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"time"
 
-	"blossm.local/backend/eventstore"
 	pb "cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"github.com/googleapis/gax-go/v2"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 type GCPPublisher interface {

@@ -10,9 +10,9 @@ import (
 	"fmt"
 	"strings"
 
-	"blossm.local/backend/command"
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/projection"
+	"github.com/mejango/blossm-toolbox-go/command"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/projection"
 )
 
 // MaxEnvelopeBytes is a portable application bound, not a provider capacity claim.

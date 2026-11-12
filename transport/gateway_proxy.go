@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"strings"
 
-	"blossm.local/backend/dia"
-	"blossm.local/backend/rpc"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/rpc"
 )
 
 // FactProxy forwards only to a composition-selected RPC target/path. Credentials

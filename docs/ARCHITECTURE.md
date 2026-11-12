@@ -1,6 +1,6 @@
 # Go backend architecture
 
-One module, `blossm.local/backend`, replaces the JavaScript runtime contract for a fresh system. Reference repositories remain untouched. Reference package source is Toolbox `18a2e086e`; the isolated checkout is `../tasks/worktrees/go-reference` at remotely verified `372d1c6a3`. Dia source is `98364adf` plus preserved working changes. The package-by-package scope ledger is [capabilities.md](capabilities.md).
+One module, `github.com/mejango/blossm-toolbox-go`, replaces the JavaScript runtime contract for a fresh system. Reference repositories remain untouched. Reference package source is Toolbox `18a2e086e`; the isolated checkout is `../tasks/worktrees/go-reference` at remotely verified `372d1c6a3`. Dia source is `98364adf` plus preserved working changes. The package-by-package scope ledger is [capabilities.md](capabilities.md).
 
 ## Owners and flow
 

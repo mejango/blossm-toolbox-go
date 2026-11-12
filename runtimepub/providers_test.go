@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"blossm.local/backend/eventstore"
 	pubsub "cloud.google.com/go/pubsub/v2/apiv1"
 	pb "cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

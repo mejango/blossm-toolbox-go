@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 func TestRequiredOwnerAnyEmptyDeniesEveryOperation(t *testing.T) {

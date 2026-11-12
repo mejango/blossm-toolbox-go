@@ -13,7 +13,7 @@ import (
 	"errors"
 	"math/big"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 const protocol = "blossm.private-block.v1"

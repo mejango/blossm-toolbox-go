@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"strings"
 
-	cloudaws "blossm.local/backend/cloud/aws"
-	"blossm.local/backend/command"
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/projection"
 	sdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	cloudaws "github.com/mejango/blossm-toolbox-go/cloud/aws"
+	"github.com/mejango/blossm-toolbox-go/command"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/projection"
 )
 
 type SQSTarget struct {

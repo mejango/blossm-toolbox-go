@@ -18,10 +18,10 @@ import (
 	"testing"
 	"time"
 
-	"blossm.local/backend/dia"
-	"blossm.local/backend/eventstore"
-	mongoStore "blossm.local/backend/storage/mongo"
-	"blossm.local/backend/storage/postgres"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	mongoStore "github.com/mejango/blossm-toolbox-go/storage/mongo"
+	"github.com/mejango/blossm-toolbox-go/storage/postgres"
 )
 
 func TestNativeRetainedRouteCoverage(t *testing.T) {

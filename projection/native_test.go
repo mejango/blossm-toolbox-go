@@ -14,11 +14,11 @@ import (
 	"testing"
 	"time"
 
-	"blossm.local/backend/eventstore"
-	mongostore "blossm.local/backend/storage/mongo"
-	"blossm.local/backend/storage/postgres"
-	"blossm.local/backend/view"
 	"github.com/jackc/pgx/v5"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	mongostore "github.com/mejango/blossm-toolbox-go/storage/mongo"
+	"github.com/mejango/blossm-toolbox-go/storage/postgres"
+	"github.com/mejango/blossm-toolbox-go/view"
 	driver "go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/view"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/view"
 )
 
 type publicationBackend struct {

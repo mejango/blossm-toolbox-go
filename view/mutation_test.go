@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 func raw(s string) json.RawMessage { return json.RawMessage(s) }

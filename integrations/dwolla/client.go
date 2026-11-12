@@ -16,7 +16,7 @@ import (
 	"regexp"
 	"strings"
 
-	"blossm.local/backend/integrations/internal/httpwire"
+	"github.com/mejango/blossm-toolbox-go/integrations/internal/httpwire"
 )
 
 const media = "application/vnd.dwolla.v1.hal+json"

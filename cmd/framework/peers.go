@@ -3,9 +3,9 @@ package main
 import (
 	"net/http"
 
-	"blossm.local/backend/dia"
-	"blossm.local/backend/rpc"
-	"blossm.local/backend/transport"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/rpc"
+	"github.com/mejango/blossm-toolbox-go/transport"
 )
 
 type peers struct {

@@ -2,11 +2,11 @@
 package job
 
 import (
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/rpc"
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/rpc"
 	"io"
 	"net/http"
 	"time"

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 const MaxReplayBatch = 10000

@@ -6,8 +6,8 @@ import (
 	"errors"
 	"sort"
 
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/storage/internal/queryindex"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/storage/internal/queryindex"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	driver "go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"

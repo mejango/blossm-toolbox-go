@@ -1,6 +1,6 @@
 # AWS adapters
 
-Package `blossm.local/backend/cloud/aws` uses official AWS SDK v2 clients through
+Package `github.com/mejango/blossm-toolbox-go/cloud/aws` uses official AWS SDK v2 clients through
 provider-specific interfaces. Construct each adapter with an explicitly configured
 client, for example `aws.SQS{Client: sqs.NewFromConfig(cfg)}`. There is no default
 credential lookup, startup network activity, environment loading, universal cloud
@@ -111,7 +111,7 @@ active v2 release line. No v1 SDK is used.
 ## Verification and limits
 
 Source was copied into `/tmp/blossm-aws-check/cloud/aws` beneath an isolated
-`blossm.local/backend` module with `go 1.26` and the requirements above. No parent
+`github.com/mejango/blossm-toolbox-go` module with `go 1.26` and the requirements above. No parent
 module files or root plan were edited. Commands from that temporary module:
 
 ```sh

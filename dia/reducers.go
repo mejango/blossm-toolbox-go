@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 // decode is the shared typed boundary for commands and persisted domain data.

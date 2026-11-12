@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"blossm.local/backend/runtimeenv"
+	"github.com/mejango/blossm-toolbox-go/runtimeenv"
 )
 
 type config struct {

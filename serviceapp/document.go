@@ -9,12 +9,12 @@ import (
 	"net/http"
 	"strings"
 
-	"blossm.local/backend/command"
-	"blossm.local/backend/dia"
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/fact"
-	"blossm.local/backend/job"
-	"blossm.local/backend/transport"
+	"github.com/mejango/blossm-toolbox-go/command"
+	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/fact"
+	"github.com/mejango/blossm-toolbox-go/job"
+	"github.com/mejango/blossm-toolbox-go/transport"
 )
 
 const Domain = "document"

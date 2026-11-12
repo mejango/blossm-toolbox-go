@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 // These one-shot gates run a competing operation at an exact read/commit

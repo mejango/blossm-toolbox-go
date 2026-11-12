@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"blossm.local/backend/dia"
+	"github.com/mejango/blossm-toolbox-go/dia"
 )
 
 type runtimeSigningClient struct {

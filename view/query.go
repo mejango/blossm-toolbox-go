@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sort"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 const DefaultLimit = 50

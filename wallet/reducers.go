@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"strconv"
 
-	"blossm.local/backend/eventstore"
-	"blossm.local/backend/evm"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/evm"
 )
 
 type reducer struct{ domain string }

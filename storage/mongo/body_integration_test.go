@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 

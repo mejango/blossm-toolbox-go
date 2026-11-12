@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"blossm.local/backend/eventstore"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 )
 
 func queryStore(bodies ...string) Store {

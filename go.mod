@@ -1,4 +1,4 @@
-module blossm.local/backend
+module github.com/mejango/blossm-toolbox-go
 
 go 1.26.0
 

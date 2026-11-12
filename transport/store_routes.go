@@ -1,8 +1,8 @@
 package transport
 
 import (
-	"blossm.local/backend/eventstore"
 	"encoding/json"
+	"github.com/mejango/blossm-toolbox-go/eventstore"
 	"net/http"
 	"time"
 )

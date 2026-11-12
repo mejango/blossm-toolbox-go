@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"blossm.local/backend/dia"
+	"github.com/mejango/blossm-toolbox-go/dia"
 )
 
 // partialResultError carries recovery data, not a commitment or delivery claim.
