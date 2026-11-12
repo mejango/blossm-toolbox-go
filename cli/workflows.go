@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	command "github.com/mejango/blossm-toolbox-go/procedures/command"
 	"io"
 	"net"
 	"net/http"
@@ -18,10 +19,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mejango/blossm-toolbox-go/dia"
-	"github.com/mejango/blossm-toolbox-go/eventstore"
-	"github.com/mejango/blossm-toolbox-go/projection"
+	projection "github.com/mejango/blossm-toolbox-go/procedures/projection"
 	"github.com/mejango/blossm-toolbox-go/rpc"
+	"github.com/mejango/blossm-toolbox-go/security/token"
+	eventstore "github.com/mejango/blossm-toolbox-go/stores/event"
 	"github.com/mejango/blossm-toolbox-go/transport"
 )
 
@@ -37,7 +38,7 @@ type Execution struct {
 	HTTP   *http.Client
 	Getenv func(string) string
 	// OpenJWT replaces runtimeauth.Open only for isolated signer fixtures.
-	OpenJWT func(context.Context, string) (*dia.JWT, func(), error)
+	OpenJWT func(context.Context, string, string) (*token.JWT[command.Context], func(), error)
 }
 
 func processRunner(ctx context.Context, in Invocation) ([]byte, error) {

@@ -40,7 +40,7 @@ func RunWith(ctx context.Context, args []string, out, stderr io.Writer, executio
 		if len(args) != 1 {
 			return errors.New("version accepts no arguments")
 		}
-		_, err := fmt.Fprintln(out, "blossm config-v1")
+		_, err := fmt.Fprintln(out, "blossm config-v2")
 		return err
 	case "init":
 		provider := f.String("provider", "gcp", "gcp or aws")
@@ -130,6 +130,14 @@ func RunWith(ctx context.Context, args []string, out, stderr io.Writer, executio
 			a = append(a, "./...")
 			return runGo(ctx, *dir, a, out, stderr)
 		}
+		configPath := *config
+		if !filepath.IsAbs(configPath) {
+			configPath = filepath.Join(*dir, configPath)
+		}
+		c, err := ReadConfig(configPath)
+		if err != nil {
+			return err
+		}
 		output := *dest
 		if !filepath.IsAbs(output) {
 			output = filepath.Join(*dir, output)
@@ -141,12 +149,8 @@ func RunWith(ctx context.Context, args []string, out, stderr io.Writer, executio
 		if err = os.MkdirAll(abs, 0755); err != nil {
 			return err
 		}
-		for _, binary := range []string{"blossm", "dia", "framework"} {
-			if err = runGo(ctx, *dir, []string{"build", "-mod=readonly", "-trimpath", "-buildvcs=false", "-o", filepath.Join(abs, binary), "./cmd/" + binary}, out, stderr); err != nil {
-				return err
-			}
-		}
-		return nil
+		return runGo(ctx, *dir, []string{"build", "-mod=readonly", "-trimpath", "-buildvcs=false", "-o", filepath.Join(abs, c.Application.Binary), c.Application.Package}, out, stderr)
+
 	default:
 		return fmt.Errorf("unknown command %q", command)
 	}

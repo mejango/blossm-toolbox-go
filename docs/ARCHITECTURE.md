@@ -1,176 +1,116 @@
-# Go backend architecture
+# Toolbox architecture
 
-One module, `github.com/mejango/blossm-toolbox-go`, replaces the JavaScript runtime contract for a fresh system. Reference repositories remain untouched. Reference package source is Toolbox `18a2e086e`; the isolated checkout is `../tasks/worktrees/go-reference` at remotely verified `372d1c6a3`. Dia source is `98364adf` plus preserved working changes. The package-by-package scope ledger is [capabilities.md](capabilities.md).
+`github.com/mejango/blossm-toolbox-go` is an application-independent framework.
+[Dia](https://github.com/mejango/dia-go) consumes its public APIs from a separate
+module. Toolbox owns no Dia models, policies, application runtime or executable.
+The [154-package inventory](capabilities.md) and [behavior ledger](behavior-coverage.md)
+retain the original framework and application capabilities with explicit owners.
 
-## Owners and flow
+Current local source-split verification passes; see [the evidence](SEPARATION.md). Existing logs,
+manifests and reviews describe their recorded pre-split source and remain
+unchanged. Source links describe ownership, not successful execution. External
+Dia links use the paired source commit recorded in capabilities.json; they
+are not references to a required local checkout.
 
-| Owner | Responsibility |
+## Capability owners
+
+| Directory | Responsibility |
 | --- | --- |
-| `eventstore` | Native representation/validation, hashes, atomic append outcomes, reducer replay, query refinement, snapshot/block frontiers, durable publication |
-| `storage/postgres`, `storage/mongo` | Transaction isolation/retry/lifecycle, constraints, canonical binary persistence, cursors, candidate indexes, versioned projections |
-| `storage/internal/queryindex` | Typed scalar-leaf terms shared by both candidate indexes |
-| `command`, `rpc`, `fact` | Procedure execution, queue acceptance, best-effort callbacks, HTTP transport and streaming |
-| `view` | Scoped queries, atomic versioned replacement/patch/delete batches, format/CSV |
-| `dia` | Typed identity/session/account/challenge/scene/role/group, system and comms behavior, authentication and subject authority |
-| `transport` | Typed HTTP routes, bounded strict decoding and protected session projection |
-| `evm`, `wallet` | Standard Ethereum codecs/signing/custody, owner-authorized operations, durable signed bytes and nonce reservation, bounded reconciliation |
-| `cloud/gcp`, `cloud/aws` | Official SDK operations and provider-specific delivery, acknowledgment, identity and resource contracts |
-| `runtimepub`, `runtimequeue`, `runtimeauth`, `runtimeenv` | Explicit publication/delivery/signing/database clients and their lifecycles |
-| `serviceapp`, `cmd/framework`, `cmd/dia` | Generic reference composition and retained Dia HTTP entrypoints |
-| `delivery`, `projection` | Authenticated prepared-work consumption, durable rejection, replay scheduling and versioned projection execution |
-| `cli`, `cmd/blossm`, `deploy` | Offline configuration, generation, tests/build and reviewable deployment artifacts |
+| [procedures/command](../procedures/command), [fact](../procedures/fact), [job](../procedures/job) | Typed execution, validation, trusted caller inputs, ordered outcomes and streaming |
+| [procedures/projection](../procedures/projection) | Aggregate-fed projection plans, dependencies, source revisions and replay scheduling |
+| [stores/event](../stores/event) | Canonical event protocol, hashes, atomic append, replay/query, snapshots, blocks and durable publication |
+| [stores/view](../stores/view) | Named/scoped projections, typed queries, atomic mutations, source-fenced selection and CSV formatting |
+| [storage/postgres](../storage/postgres), [storage/mongo](../storage/mongo) | Native transactions/retries, canonical bytes, constraints, cursors and candidate indexes |
+| [storage/internal/queryindex](../storage/internal/queryindex) | Shared typed scalar-leaf query terms |
+| [security/token](../security/token), [security/authn](../security/authn) | Generic typed ES256 tokens/signers and authentication error boundaries; applications own claims policy |
+| [security/cryptography](../security/cryptography), [security/audit](../security/audit) | Protocol cryptography and private signed/encrypted audit exports |
+| [onchain/evm](../onchain/evm) | Ethereum codecs, ABI/RLP/MPT, signing and provider operations; application custody policy stays outside Toolbox |
+| [transport](../transport), [rpc](../rpc) | Generic authenticated HTTP routes/clients, strict decoding, errors, cookies, proxying, uploads and cancellation |
+| [delivery](../delivery) | Prepared-work consumption, acknowledgment, durable terminal rejection and recovery |
+| [runtime/auth](../runtime/auth), [env](../runtime/env), [publication](../runtime/publication), [queue](../runtime/queue) | Explicit SDK/database/signing/client composition and lifecycles |
+| [cloud](../cloud), [integrations](../integrations) | Provider SDK adapters and bounded external protocols |
+| [cli](../cli), [cmd/blossm](../cmd/blossm), [deploy](../deploy) | Offline configuration/scaffolding, actual build/test delegation and reviewable resource plans |
 
-A command authenticates and validates typed input, prepares events, and appends an atomic batch. The shared owner normalizes before hashing, locks roots in deterministic order, checks duplicate identity and expected next event numbers, validates reducer transitions, writes counters/events/outbox, then commits. Publication occurs afterward. Consumer acknowledgment follows its durable projection write. Failed publication leaves outbox records pending; failed deletion after acknowledgment permits duplicate delivery. Startup and periodic recovery are bounded. Local mode keeps real database transactions but creates no publication records and invokes no publisher.
+Package declarations may retain short names such as `eventstore`; directory
+names describe capabilities. The generic reference primitives are reusable by
+any application. Dia's identity-backed document example lives in
+[Dia examples/document](https://github.com/mejango/dia-go/tree/main/examples/document),
+not in this module.
 
-Remote runtime has explicit GCP Pub/Sub or AWS SNS/SQS selection. SQS receives are not HTTP task execution, and SNS acknowledgment does not prove subscriber completion. Cloud Run background workers require allocated CPU and a warm instance; generated artifacts state this operational choice. Provider resources, permissions and live execution are never inferred from local tests.
+## Execution and committed representation
 
-## Internal Go v1 representation
+Application authentication supplies trusted identity/context; procedure handlers
+prepare typed events. Append normalizes input, locks roots deterministically,
+checks duplicate identity and expected event numbers, applies reducers, and
+commits counters/events/outbox atomically. Publication happens after commitment.
+Acknowledgment follows durable consumption. Unknown commit is explicit and never
+causes an automatic transaction replay. Known-abort retries are bounded; read
+callbacks are single-attempt. Local mode keeps database integrity while bypassing
+publication infrastructure.
 
-JSON is UTF-8 with duplicate object keys and unpaired Unicode surrogate escapes rejected. Object keys are lexically sorted by Go's JSON encoder, insignificant whitespace is removed, and strings use its deterministic escaping. Numbers are finite binary64 within the safe-integer range. Integer values use plain decimal spelling; fractional values use shortest Go decimal spelling. Negative zero normalizes to zero. This is an explicit internal encoding, not an RFC8785 or historical JavaScript compatibility claim. Fixed hash vectors and normalization fixed points are tested.
+Canonical JSON rejects duplicate keys, invalid Unicode and unsafe numbers.
+Safe integer values use decimal spelling; external uint256 and persisted uint64
+values use strings. Timestamps normalize to UTC RFC3339Nano. Fingerprints omit
+only volatile exp/iat/nbf/jti claim fields; committed event hashes retain the full
+original claims. Reducer inputs/state are detached before invocation so callbacks
+cannot mutate committed bytes. COMMITTED, DUPLICATE and QUEUED are distinct.
+Root revision is the last zero-based event number, -1 when absent; expected event
+number is zero for creation. Invalid transitions cannot be committed merely
+because payload validation succeeded.
 
-Ethereum uint256 values use decimal strings; persisted uint64 nonce/block/confirmation values also use decimal strings. Timestamps are parsed RFC3339 with explicit offsets and normalized to UTC RFC3339Nano. JWT claims use integer epoch seconds and ES256 JOSE signatures. Optional fields retain the documented struct `omitempty` behavior; heterogeneous payload/claims/context fields remain validated raw JSON. Typed application decoding rejects unknown fields rather than casting or silently stripping them.
+Publication payloads are bounded to240KiB before hashing/writing, including local
+mode. Provider envelopes/queue limits must retain their documented overhead.
+Provider acceptance is not consumer completion. Replay has explicit run identity:
+retries/pages reuse it, while a new rebuild uses a new ID. Terminal deterministic
+rejections are acknowledged only after their minimal immutable journal commits;
+unknown commits/network failures/cancellation remain retryable. Operator redrive
+and dead-letter policy remains an explicit prerequisite, not provisioned magic.
 
-An input fingerprint hashes its normalized root/action/key/expected/timestamp/payload/context/transaction representation, excluding only top-level transaction claim fields exp, iat, nbf and jti. The event hash retains the complete original claims. Generated command keys bind a canonical trusted principal (or effective iss/aud/sub), command ID and event index, excluding the target root so retargeted retries conflict. An event hash hashes that input, allocated zero-based number, fingerprint and empty hash field. Storage retains those exact normalized values as bytes and separate searchable metadata. A repeated identical key returns DUPLICATE, including within one batch. A changed request under the same key fails. COMMITTED means confirmed database commitment; QUEUED means confirmed provider acceptance only. An unknown commit returns an explicit uncertainty error and never automatically replays the transaction callback.
+## Queries, projection fences and recovery
 
-Root revision is the last event number, -1 when absent. Expected is the next event number, zero for creation. Dia adapts this to next-count at its application boundary. Reducers are deterministic and are executed both before commit and during replay; invalid transitions cannot be committed merely because payload validation passed.
+Event queries use strict scalar matching, array traversal and null-versus-missing
+semantics. Typed candidate indexes narrow clean snapshots while dirty roots
+remain candidates; complete replay performs final matching. There is no hidden
+100-snapshot cap. Snapshot/block bytes remain binary, and per-root snapshot
+service credit advances atomically with the block. These are internal audit
+artifacts, not public Ethereum transactions.
 
-## Queries, projections and blocks
+Named views isolate logical IDs sharing a backend. Common owner scope is ANDed
+with group unions; required empty unions deny all rows. View queries provide
+typed number/date bounds, literal text and stable typed sorting. Query-selected
+writes have an explicit maximum and prove the committed source frontier before
+writing; they cannot invent projection versions. Patches bind expected revision;
+missing-row tombstones prevent stale recreation. These are single-source fences,
+not universal exactly-once or cross-service serializable transactions.
 
-Queries conjoin strict scalar equalities. Paths traverse arrays without treating elements as one correlated object. Explicit null differs from missing; numeric strings differ from numbers. Indexed typed leaf terms select matching latest clean snapshots, while all dirty and unsnapshotted roots remain candidates. Full current replay performs final matching. There is no implicit 100-snapshot cap. Cursors await serial callbacks, honor cancellation and clean up within the same repeatable transaction.
+Command `Then` callbacks receive detached ordered outcomes, including duplicate,
+queued and empty outcomes. Deterministic response construction may repeat;
+fresh-only effects must check COMMITTED and remain best effort. Nested command
+clients preserve stable child identity/trace; applications own delegation and
+immutable intent. A child commit cannot be rolled back by its parent.
 
-Snapshots and blocks retain binary byte fields. Block construction advances durable per-root snapshot frontiers atomically with the block, never using wall-clock windows as the inclusion criterion. A bounded root batch permits continuation; late commits remain eligible. Blocks are internal audit artifacts, not public Ethereum transactions. Optional signing binds the block hash. There is no public export of private event payloads in the HTTP API.
+HTTP stream callbacks run serially within a repeatable view and honor cancellation.
+Midstream failure aborts the response; truncation is not success. Store clients
+expose typed append/count/query/history/aggregate/block calls. Signed blocks require
+an explicitly configured producer signer; private export remains security/audit.
+Streaming has the configured gateway deadline (currently30seconds); unbounded
+connections are not promised. JSON is encoded before response headers;204 is
+header-only. Application shutdown owns cancellation and joins workers before
+closing their clients.
 
-A projection replacement includes its complete source root and revision. Older/equal versions cannot overwrite newer output, including tombstones. Patches require an expected prior view revision and atomically apply with their batch. This provides an explicit single-source contract; it does not claim exactly-once incremental side effects or solve arbitrary multi-source ordering. Application owner predicates and source scope constrain reads independently of client filters.
+## Application boundary and evidence
 
-## Identity, recovery and external effects
+Dia owns its identity/session/account/scene/role/group policy, model schemas,
+communications, custody and recovery. See its
+[architecture](https://github.com/mejango/dia-go/blob/main/docs/ARCHITECTURE.md).
+Generic token verification/signing does not decide application permissions or
+revocation policy. One network remains one signing trust domain: shared-key
+signers are mutually trusted, and peer subjects are not compromise isolation.
 
-Session creation uses a client-generated 32-byte secret; it cannot recover an upgraded session as an anonymous retry. Every access check verifies issuer/audience/time/signature and current session identity, termination and scene deletion. Subject-scoped role checks replace historical `privileges:none` mutation paths. Authorization is checked at admission; it does not claim cancellation of an already admitted request when an independent concurrent revocation commits.
-
-Dia stores an operation receipt atomically with domain effects. After any append error it performs one context-bound receipt read: an exact semantic digest proves commitment, a different digest conflicts, and absence or a failed read preserves the original error. This resolves lost responses without replaying a write or assuming that a transaction error proves rollback.
-
-Challenge consumption, deferred identity events and session upgrade commit as one multi-root batch. Proof is single-use for effects; an already consumed matching proof may recover the committed response while valid. Failed attempts are bounded. Email is encrypted in challenge state; delivery follows commitment and supports explicit retry, with possible duplicate mail. SMTP/SMS/provider acknowledgment is not exactly-once delivery. `thenFn`-style callbacks remain awaited, best-effort in-process work and can be lost after a crash. No general durable-command/action protocol is enabled.
-
-Custodial wallet authorization binds the persisted wallet to the authenticated principal. Signed transaction bytes and the account nonce frontier commit before submission, shared across instances through the selected database. Unknown submissions retain their nonce and hash; retries broadcast identical bytes. Only canonical, sufficiently confirmed receipt evidence marks success or failure. Polling has a total deadline. Relayr payments and JB/shop are deferred by explicit scope decision, not represented by success stubs.
-
-## Execution authority and evidence
-
-Local compilation, native database tests, SDK protocol fixtures and generated configuration checks establish only their tested contracts. No Go deployment, live KMS signature, provider message, email/SMS, blockchain submission, publication, merge or remote-repository creation has been authorized or performed. See [VERIFICATION.md](VERIFICATION.md) for exact evidence and remaining gates.
-
-## Callback ownership and streaming reads
-
-The shared reducer invocation boundary copies state and all mutable event fields
-before invoking application code. Passing a struct by value is insufficient for
-RawMessage, slices and pointers; committed hashes and outbox records must remain
-unchanged even if a reducer uses in-place working buffers. Append, current replay
-and historical replay use this same boundary.
-
-The authenticated framework replaces event context and transaction claims with
-verified identity data. Command/fact validation and missing required authority
-map to explicit client errors; uncertain queue acceptance remains distinct from
-commit success. Store routes include `/count`, `/history`, `/roots` and
-`/aggregates`, alongside `/events`, `/aggregate` and `/query`. Root and aggregate
-streams use NDJSON, one repeatable read, serial callbacks and request cancellation.
-An error after output aborts the response so truncation cannot look successful.
-Aggregate streaming buffers root identities before replay, avoiding concurrent
-cursors on one database connection; it does not buffer all aggregate bodies.
-
-`transport.StoreClient` provides typed append, aggregate, count, query, history,
-root/aggregate stream and block calls over explicit configured service URLs.
-`POST /blocks` is exposed only when the framework has a configured producer
-signer. It constructs snapshots and the signed block atomically, then attempts
-outbox recovery even if no root changed. Private encrypted export remains the
-separate `audit.Seal/Open` capability with mandatory producer signature binding.
-
-Each canonical publication is bounded to240KiB before hashing and database
-mutation, with space reserved for generated hashes, event numbers and retry
-bookkeeping. The same rule applies in local mode. This is an individual-event
-boundary, not a batch or aggregate-state limit. Generated AWS subscriptions use
-raw SNS delivery and receiving queues sized for at least256KiB; alternate
-operator configurations must preserve those delivery assumptions.
-
-The Dia server binds request contexts to its process lifecycle. Shutdown cancels
-workers and active request contexts, allows a15-second HTTP grace period, and
-closes remaining HTTP connections if that period expires. It joins cancelled
-context-aware publication workers before closing SDKs/database pools; Go cannot
-forcibly terminate arbitrary callbacks that ignore their context. Terminal logs
-record controlled lifecycle stages, never raw provider or connection-string errors.
-
-
-## Generic service composition and interaction
-
-`cmd/framework` runs `serviceapp` over the same native protocol. Identity and
-application namespaces are distinct, with separate outbox ownership. Its
-command/fact/job/view/projection routes consume the generic packages; `cmd/dia`
-retains the application-specific identity, comms, system and custody routes.
-Both executables close clients after canceled request and worker lifecycles join.
-
-`command.Result.Then` runs after successful dispatch for all ordered outcomes,
-including queued, duplicate and empty batches. It receives detached inputs and
-receipts. Deterministic response construction can repeat; effects must inspect
-COMMITTED explicitly and remain best effort. Callback errors preserve confirmed
-outcomes. This is not a deferred durable-action protocol.
-
-`CommandClient` derives child identity from parent ID, fixed logical target,
-procedure and operation selector. Signed delegation binds the parent transaction
-and trace, uses the target network/service audience, and revalidates current Dia
-session/scene state. It grants command-route authority only. The copy reference
-requires a source version and verified historical state so a changed source cannot
-change a retry's derived child payload. Child commitment cannot be rolled back by
-a later parent failure.
-
-Remote command envelopes require a separately verified producer identity and an
-explicit admission policy. Deterministic invalid/idempotency/conflict/forbidden
-outcomes may be acknowledged only after a minimal immutable rejection journal
-commits. Unknown commits, network errors and cancellation take precedence and
-remain retryable. The reference exposes rejection inspection only to its internal
-peer. Queue acceptance includes the stable envelope ID for that lookup. A fresh
-confirmed rejection emits a minimal structured runtime warning; observer failures
-do not undo commitment or prevent acknowledgment. Notification is best effort,
-not a second durable protocol. Store-peer credentials never default to delivery credentials.
-
-A replay run has an explicit typed RunID across scheduler, HTTP/CLI and provider
-messages. Retries and pages reuse it; a new rebuild supplies a new ID. Task and
-FIFO deduplication therefore do not suppress later rebuilds.
-
-Named views isolate physical row IDs. Required group unions deny access when no
-groups are present. Query-selected mutations lock selected source roots and verify
-each requested version equals the committed source frontier before any writes;
-they cannot invent versions that would suppress future projections. Projection
-Batch remains the trusted source-bound consumer API. Missing-row tombstones
-prevent an older create from resurrecting a deleted projection.
-
-Dia JWT signing accepts a context-aware local or provider KMS signer and validates
-returned ES256 signatures against a pinned public key. Runtime signer selection
-is explicit; token verification and authorization remain in Dia and transport,
-not provider adapters. Gateway cookies, proxying and uploads have separate bounded
-and authenticated interfaces, documented under `transport`.
-
-## Network signing trust boundary
-
-The user explicitly selected **one trust domain per network**. Services using that
-network's signing authority are mutually trusted issuers. Pinned peer subjects and
-service audiences restrict correctly configured callers, but a process authorized
-to sign with the shared key can mint another peer's subject; those checks are not
-compromise isolation between services. Network administrators must grant signing
-access only to trusted services/operators. Separate networks and their signing
-keys establish separate trust domains. Per-service issuer isolation is not claimed
-or silently emulated by subject strings.
-
-Request streaming currently has the gateway's explicit 30-second deadline. A
-truncated/error stream aborts and must not be interpreted as complete. Long scans
-need bounded selectors/pages or an application-specific HTTP policy; there is no
-claim of indefinitely open fact/store streams. Structurally malformed delivery
-bodies cannot establish an authenticated content ID and remain unacknowledged;
-provider redrive/dead-letter policy is an operator configuration prerequisite,
-especially for FIFO groups. Deterministic failures of valid envelopes use the
-rejection journal and do not block following work after acknowledgment.
-
-
-Operators obtain a bounded internal service credential through
-`blossm internal-token --config ... --execute`, using the same selected local/KMS
-signer and exact configured network audience/internal subject. Preparation reads
-no credentials and performs no signing. Provider invoker tokens and application
-service JWTs are separate. GCP generated configurations explicitly select
-`application` invocation (platform IAM check disabled, container authorization
-retained) or `iam` (a separate Google invocation credential/edge remains required).
-Generating these reviewed artifacts performs no IAM change or deployment.
+Cloud providers and onchain adapters require explicit configuration; local tests
+and SDK fixtures do not establish live provider compatibility. No deployment,
+live KMS/message/custody transaction or production readiness is established by
+this source split. See parent-owned [VERIFICATION.md](VERIFICATION.md) and
+[PUBLICATION.md](PUBLICATION.md) for historical publication and new gate evidence.
+The documentation checker may inspect both repositories via DIA_SOURCE; Go
+builds must depend only on their declared public modules.

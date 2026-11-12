@@ -11,9 +11,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/mejango/blossm-toolbox-go/audit"
-	"github.com/mejango/blossm-toolbox-go/command"
+	"github.com/mejango/blossm-toolbox-go/procedures/command"
 	"github.com/mejango/blossm-toolbox-go/rpc"
+	"github.com/mejango/blossm-toolbox-go/security/audit"
 	"github.com/mejango/blossm-toolbox-go/transport"
 	"net/http"
 	"net/http/httptest"
@@ -23,9 +23,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mejango/blossm-toolbox-go/eventstore"
 	mongoStore "github.com/mejango/blossm-toolbox-go/storage/mongo"
 	"github.com/mejango/blossm-toolbox-go/storage/postgres"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
 )
 
 type counter struct{}

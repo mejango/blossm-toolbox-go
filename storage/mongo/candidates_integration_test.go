@@ -5,9 +5,9 @@ package mongo
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/mejango/blossm-toolbox-go/eventstore"
 	"github.com/mejango/blossm-toolbox-go/storage/internal/queryindex"
 	"github.com/mejango/blossm-toolbox-go/storage/internal/querytest"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"testing"
 )

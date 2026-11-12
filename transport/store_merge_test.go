@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mejango/blossm-toolbox-go/eventstore"
 	"github.com/mejango/blossm-toolbox-go/rpc"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
 )
 
 // Read-only fixture, like the retained JS HTTP test's injected event readers.

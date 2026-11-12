@@ -18,9 +18,9 @@ import (
 	"github.com/googleapis/gax-go/v2"
 	cloudaws "github.com/mejango/blossm-toolbox-go/cloud/aws"
 	"github.com/mejango/blossm-toolbox-go/cloud/gcp"
-	"github.com/mejango/blossm-toolbox-go/command"
-	"github.com/mejango/blossm-toolbox-go/eventstore"
-	"github.com/mejango/blossm-toolbox-go/projection"
+	"github.com/mejango/blossm-toolbox-go/procedures/command"
+	"github.com/mejango/blossm-toolbox-go/procedures/projection"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

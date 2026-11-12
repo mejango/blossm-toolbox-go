@@ -8,10 +8,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/mejango/blossm-toolbox-go/command"
-	"github.com/mejango/blossm-toolbox-go/eventstore"
-	"github.com/mejango/blossm-toolbox-go/fact"
-	"github.com/mejango/blossm-toolbox-go/job"
+	"github.com/mejango/blossm-toolbox-go/procedures/command"
+	"github.com/mejango/blossm-toolbox-go/procedures/fact"
+	"github.com/mejango/blossm-toolbox-go/procedures/job"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
 )
 
 type Identity struct {
@@ -90,7 +90,7 @@ func (f Framework) Handler(ctx context.Context) (http.Handler, error) {
 		mux.Handle("/projections/", handler)
 	}
 	authenticated := func(fn func(http.ResponseWriter, *http.Request, Identity) error) http.HandlerFunc {
-		return wrap(func(w http.ResponseWriter, r *http.Request) error {
+		return Wrap(func(w http.ResponseWriter, r *http.Request) error {
 			identity, e := f.Authorize(r)
 			if e != nil {
 				w.WriteHeader(http.StatusUnauthorized)
@@ -106,7 +106,7 @@ func (f Framework) Handler(ctx context.Context) (http.Handler, error) {
 			return nil
 		}
 		var in command.Request
-		if e := decode(w, r, &in); e != nil {
+		if e := Decode(w, r, &in); e != nil {
 			return e
 		}
 		in.Context = identity.Context
@@ -128,7 +128,7 @@ func (f Framework) Handler(ctx context.Context) (http.Handler, error) {
 		if status == 0 {
 			status = 200
 		}
-		return write(w, status, out)
+		return Write(w, status, out)
 	}))
 	mux.HandleFunc("GET /facts/{name}", authenticated(func(w http.ResponseWriter, r *http.Request, identity Identity) error {
 		p, ok := f.Facts[r.PathValue("name")]
@@ -161,7 +161,7 @@ func (f Framework) Handler(ctx context.Context) (http.Handler, error) {
 		if e != nil {
 			return e
 		}
-		return write(w, 200, out)
+		return Write(w, 200, out)
 	}))
 	mux.HandleFunc("POST /jobs/{name}", authenticated(func(w http.ResponseWriter, r *http.Request, identity Identity) error {
 		p, ok := f.Jobs[r.PathValue("name")]
@@ -170,7 +170,7 @@ func (f Framework) Handler(ctx context.Context) (http.Handler, error) {
 			return nil
 		}
 		var in job.Input
-		if e := decode(w, r, &in); e != nil {
+		if e := Decode(w, r, &in); e != nil {
 			return e
 		}
 		in.Context, _ = eventstore.Encode(identity.Context)
@@ -188,7 +188,7 @@ func (f Framework) Handler(ctx context.Context) (http.Handler, error) {
 			var in struct {
 				Events []eventstore.Input `json:"events"`
 			}
-			if e := decode(w, r, &in); e != nil {
+			if e := Decode(w, r, &in); e != nil {
 				return e
 			}
 			trustedContext, e := eventstore.Encode(identity.Context)
@@ -207,11 +207,11 @@ func (f Framework) Handler(ctx context.Context) (http.Handler, error) {
 				return e
 			}
 			f.recover(r.Context())
-			return write(w, 200, out)
+			return Write(w, 200, out)
 		}))
 		mux.HandleFunc("POST /aggregate", authenticated(func(w http.ResponseWriter, r *http.Request, identity Identity) error {
 			var root eventstore.Root
-			if e := decode(w, r, &root); e != nil {
+			if e := Decode(w, r, &root); e != nil {
 				return e
 			}
 			if root.Network != f.Network {
@@ -221,7 +221,7 @@ func (f Framework) Handler(ctx context.Context) (http.Handler, error) {
 			if e != nil {
 				return e
 			}
-			return write(w, 200, out)
+			return Write(w, 200, out)
 		}))
 		mux.HandleFunc("POST /query", authenticated(func(w http.ResponseWriter, r *http.Request, identity Identity) error {
 			var in struct {
@@ -229,14 +229,14 @@ func (f Framework) Handler(ctx context.Context) (http.Handler, error) {
 				Domain     string                 `json:"domain"`
 				Predicates []eventstore.Predicate `json:"predicates"`
 			}
-			if e := decode(w, r, &in); e != nil {
+			if e := Decode(w, r, &in); e != nil {
 				return e
 			}
 			out, e := f.Store.Query(r.Context(), f.Network, in.Service, in.Domain, in.Predicates)
 			if e != nil {
 				return e
 			}
-			return write(w, 200, out)
+			return Write(w, 200, out)
 		}))
 	}
 	f.recover(ctx)

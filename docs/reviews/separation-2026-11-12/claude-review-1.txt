@@ -1,0 +1,37 @@
+**Bounded result: no blockers found in the ownership, auth, or config paths I read.** One low-to-medium issue remains, and it predates the split. This is a read-only source review, not a full audit; nothing was run.
+
+## Remaining issue
+
+**Low to medium: the document app drains the shared identity outbox and rejects wallet notices.**
+
+- **Where:** `dia-go/cmd/document/main.go:120-134` and `:161-173`.
+- **Trigger:** paired cloud deployment (`aws-mongo.json` + `aws-document-mongo.json`, or the GCP pair) with the Dia wallet enabled (`EVM_RPC_URLS`).
+- **Evidence:**
+  - Both apps run `runtimepub.Recover/Run` over the same identity store (`diaapp` / `dia_identity`).
+  - `Store.Deliver` (`blossm-toolbox-go/stores/event/store.go:318-349`) reads `Pending` without a claim, publishes, then deletes, so either worker can take any notice.
+  - Dia writes wallet events into that same store (`dia-go/runtime/runtime.go:78-81`, `services/wallet/wallet.go:42`, service `"wallet"`).
+  - When the document worker wins, the wallet notice goes to the document topic, and `publicationRouter.Publish` returns `dia.ErrForbidden` for any service other than core, system, comms or the document service.
+  - The AWS consumer keeps failed messages for redelivery (`runtime/publication/aws.go:97`), so these become poison messages on the document projection queue.
+- **Impact:** queue noise and DLQ pressure only. Wallet has no projection consumer, and session notices are safe because both consumers project idempotently into the same store.
+- **Not a split regression:** the same routing exists in the original `blossm-go/cmd/framework/main.go:120,166`. The shared `dia_identity` example makes it reachable.
+- **Fix:** either have the router ignore identity-store services it does not project, or stop the document app from draining the identity outbox when the Dia app owns it.
+
+## Checked and found sound
+
+- **Dependency direction:** Toolbox `go.mod` and Go sources (including scaffold, plan and run) have no Dia import or `replace`; the only `replace` is a test fixture string at `cli/workflows_test.go:304`. Dia `go.mod:9` and `go.sum:246-247` pin `0007d3d81d36`, and the Dockerfile and CI set `GOWORK=off`.
+- **Generic signing:** `token.JWT[C].Verify` keeps the strict checks (exact 8 claims, no nulls, duplicate and unknown field rejection, kind, issuer, audience, time bounds) at `security/token/jwt.go:92-149`. `ServiceJWTVerifier` pins subject and kind `service` (`transport/auth.go:250-264`). Dia uses plain type aliases (`services/identity/signing.go`).
+- **Live authorization:**
+  - `DiaVerifier` calls `AuthenticateAccess` / `AuthenticateConnection`, which load session, scene and connection-key state (`services/identity/service.go:96-162`).
+  - The delegated verifier adds `AuthorizeDelegatedContext`, the transaction-binding check and an exact audience of `network/service` (`httpapi/auth_delegated.go:78-131`).
+  - Internal and delegated tokens are not interchangeable, because their audiences differ (`cmd/document/peers.go:24`).
+  - User routes accept kind `service` only on `POST /commands/{name}` and only with the delegated check (`examples/document/app.go:121-160`).
+- **Models:** all 60 JSON tags in `models/core`, `system` and `comms` match the original `blossm-go/dia/models.go` in value and order, with no `omitempty` changes.
+- **Deployment contract:** `deployment/config.go` enforces issuer `dia.<NETWORK>`, audience `NETWORK`, secret-only keys, and distinct, validated namespaces. The examples agree with `cmd/document/config.go` and the env the CLI emits. `cli internal-token` output matches the document internal verifier.
+
+## Verification limits
+
+- I did not confirm that the exported Toolbox tree equals the pinned commit; that needs git or module commands.
+- I did not read test files, so "relocated, not deleted" is unconfirmed by me.
+- Not read: `services/identity/system.go`, `httpapi/routes.go`, the wallet HTTP path, `cli/scaffold.go` beyond its imports, `cli/workflows.go`, and the GCP consumer's failure handling.
+- Each config is validated alone. If the two paired configs disagree on Mongo name or secret, the document app fails closed with 401s at runtime; no static check catches it.
+- The native and container runs still in progress are not reflected here.

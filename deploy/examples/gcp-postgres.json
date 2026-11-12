@@ -1,45 +1,36 @@
 {
-  "version": 1,
-  "runtime": "dia",
-  "signing": {
-    "provider": "local"
+  "version": 2,
+  "application": {
+    "package": "./cmd/server",
+    "binary": "server",
+    "entrypoint": "/server"
   },
-  "name": "dia-api",
-  "network": "example.test",
+  "name": "sample-api",
   "provider": "gcp",
-  "image": "example.invalid/blossm/dia:review-required",
+  "image": "example.invalid/sample/server:review-required",
   "port": 8080,
-  "local": false,
+  "secrets": {
+    "API_KEY": {
+      "reference": "sample-api-key",
+      "version": "1"
+    }
+  },
   "database": {
     "driver": "postgres",
-    "namespace": "blossm",
+    "namespace": "sample",
     "secret": {
-      "reference": "dia-database",
+      "reference": "sample-database",
       "version": "1"
     }
   },
   "publication": {
-    "topic": "projects/example-project/topics/dia-events",
-    "subscription": "projects/example-project/subscriptions/dia-projection"
-  },
-  "secrets": {
-    "DIA_ENCRYPTION_KEY": {
-      "reference": "dia-encryption-key",
-      "version": "1"
-    },
-    "DIA_HMAC_KEY": {
-      "reference": "dia-hmac-key",
-      "version": "1"
-    },
-    "JWT_PRIVATE_KEY": {
-      "reference": "dia-jwt-private-key",
-      "version": "1"
-    }
+    "topic": "projects/example-project/topics/sample-events",
+    "subscription": "projects/example-project/subscriptions/sample-projection"
   },
   "gcp": {
     "project": "example-project",
     "region": "us-central1",
-    "serviceAccount": "dia-api@example-project.iam.gserviceaccount.com",
+    "serviceAccount": "sample-api@example-project.iam.gserviceaccount.com",
     "invocation": "application"
   }
 }

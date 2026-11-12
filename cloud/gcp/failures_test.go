@@ -105,7 +105,13 @@ func TestProviderErrorsAndCancellation(t *testing.T) {
 			}
 			for name, fn := range operations {
 				t.Run(name, func(t *testing.T) {
-					c, stop := context.WithTimeout(ctx, 100*time.Millisecond)
+					// Permission propagation has no sub-second latency contract.
+					// Keep the short deadline only in the cancellation fixture.
+					budget := 5 * time.Second
+					if cancel {
+						budget = 100 * time.Millisecond
+					}
+					c, stop := context.WithTimeout(ctx, budget)
 					defer stop()
 					e := fn(c)
 					want := codes.PermissionDenied

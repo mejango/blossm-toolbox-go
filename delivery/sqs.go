@@ -8,9 +8,9 @@ import (
 	sdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	cloudaws "github.com/mejango/blossm-toolbox-go/cloud/aws"
-	"github.com/mejango/blossm-toolbox-go/command"
-	"github.com/mejango/blossm-toolbox-go/eventstore"
-	"github.com/mejango/blossm-toolbox-go/projection"
+	"github.com/mejango/blossm-toolbox-go/procedures/command"
+	"github.com/mejango/blossm-toolbox-go/procedures/projection"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
 )
 
 type SQSTarget struct {

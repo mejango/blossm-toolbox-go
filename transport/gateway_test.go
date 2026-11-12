@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mejango/blossm-toolbox-go/command"
-	"github.com/mejango/blossm-toolbox-go/dia"
-	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/procedures/command"
 	"github.com/mejango/blossm-toolbox-go/rpc"
+	"github.com/mejango/blossm-toolbox-go/security/authn"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
 )
 
 func cookieFixture() CookiePolicy {
@@ -78,7 +78,7 @@ func TestGatewayCookieCommandResponseAndRevocation(t *testing.T) {
 	calls := 0
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
-		_ = write(w, 201, command.Response{Contribution: command.Contribution{Tokens: []json.RawMessage{issued, refreshed}, Revoke: []string{"access"}, Headers: map[string]string{"Set-Cookie": "evil=1"}}, ID: "command", TransactionID: "tx"})
+		_ = Write(w, 201, command.Response{Contribution: command.Contribution{Tokens: []json.RawMessage{issued, refreshed}, Revoke: []string{"access"}, Headers: map[string]string{"Set-Cookie": "evil=1"}}, ID: "command", TransactionID: "tx"})
 	})
 	h, err := CookieGateway(next, cookieFixture(), []string{"/commands/login"}, 1<<20)
 	if err != nil {
@@ -113,7 +113,7 @@ func TestGatewayCookieCommandResponseAndRevocation(t *testing.T) {
 	}
 	// All cookie instructions validate before any cookies can escape.
 	next = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = write(w, 200, command.Response{Contribution: command.Contribution{Tokens: []json.RawMessage{issued, json.RawMessage(`{"type":"foreign","value":"x","expires":9999999999}`)}}})
+		_ = Write(w, 200, command.Response{Contribution: command.Contribution{Tokens: []json.RawMessage{issued, json.RawMessage(`{"type":"foreign","value":"x","expires":9999999999}`)}}})
 	})
 	h, _ = CookieGateway(next, cookieFixture(), []string{"/commands/login"}, 1<<20)
 	w = httptest.NewRecorder()
@@ -140,7 +140,7 @@ func proxyFixture(t *testing.T, upstream http.Handler) (http.Handler, *httptest.
 		return (Authenticator{Bearer: fixtureVerifier}).Authenticate(r)
 	}, RPC: client, Path: "/facts/download", Upstream: func(ctx context.Context, id Identity) (http.Header, error) {
 		if string(id.Claims) != `{"sub":"trusted"}` {
-			return nil, dia.ErrUnauthorized
+			return nil, authn.ErrUnauthorized
 		}
 		return http.Header{"Authorization": {"Bearer peer-only"}}, nil
 	}}).Handler()

@@ -14,41 +14,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mejango/blossm-toolbox-go/command"
-	"github.com/mejango/blossm-toolbox-go/dia"
-	"github.com/mejango/blossm-toolbox-go/eventstore"
-	"github.com/mejango/blossm-toolbox-go/job"
-	"github.com/mejango/blossm-toolbox-go/view"
+	"github.com/mejango/blossm-toolbox-go/procedures/command"
+	"github.com/mejango/blossm-toolbox-go/procedures/job"
+	"github.com/mejango/blossm-toolbox-go/security/authn"
+	"github.com/mejango/blossm-toolbox-go/security/token"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
+	"github.com/mejango/blossm-toolbox-go/stores/view"
 )
 
-type authState struct {
-	dia.Store
-	rows map[eventstore.Root]eventstore.Aggregate
-}
-
-func (s *authState) Aggregate(ctx context.Context, r eventstore.Root) (eventstore.Aggregate, error) {
-	if err := ctx.Err(); err != nil {
-		return eventstore.Aggregate{}, err
-	}
-	v, ok := s.rows[r]
-	if !ok {
-		return v, eventstore.ErrNotFound
-	}
-	return v, nil
-}
-func (s *authState) put(r eventstore.Root, v any) {
-	body, _ := eventstore.Encode(v)
-	s.rows[r] = eventstore.Aggregate{Root: r, Version: 1, State: body}
-}
-func gatewayJWT(t *testing.T) (dia.JWT, dia.Claims) {
-	t.Helper()
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	now := time.Now().Unix()
-	return dia.JWT{Signer: dia.LocalSigner{Key: key}, VerifyKey: &key.PublicKey, Issuer: "issuer", Audience: "n"}, dia.Claims{Issuer: "issuer", Audience: []string{"n"}, Subject: "p", ID: "jti", Kind: "access", NotBefore: now - 1, Expires: now + 600, Context: dia.SessionContext{Network: "n", Session: eventstore.Root{Network: "n", Service: "core", Domain: "session", ID: "s"}, Principal: eventstore.Root{Network: "n", Service: "core", Domain: "principal", ID: "p"}}}
-}
 func authIdentity() Identity {
 	return Identity{Context: command.Context{"principal": json.RawMessage(`{"network":"n","service":"core","domain":"principal","id":"p"}`)}, Claims: json.RawMessage(`{"sub":"trusted"}`)}
 }
@@ -64,72 +37,11 @@ func authHTTPRequest(method, path string) *http.Request {
 	return r
 }
 
-func TestGatewayDiaSessionAndConnectionAuthority(t *testing.T) {
-	jwt, claims := gatewayJWT(t)
-	state := &authState{rows: map[eventstore.Root]eventstore.Aggregate{}}
-	session := dia.SessionState{Expires: claims.Expires, Principal: claims.Context.Principal}
-	state.put(claims.Context.Session, session)
-	subject := eventstore.Root{Network: "n", Service: "core", Domain: "account", ID: "account"}
-	state.put(claims.Context.Principal, dia.PrincipalState{Roles: []dia.RoleGrant{{ID: "AccountAdmin", Subject: subject}}})
-	service := &dia.Service{JWT: &jwt, Store: state, Network: "n"}
-	verify, err := DiaVerifier(service, "access")
-	if err != nil {
-		t.Fatal(err)
-	}
-	token, err := jwt.Sign(context.Background(), claims)
-	if err != nil {
-		t.Fatal(err)
-	}
-	id, err := verify(context.Background(), token)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = DiaPermission(service, subject, "core:account:update")(context.Background(), id, GatewayRequest{}); err != nil {
-		t.Fatal(err)
-	}
-	foreign := subject
-	foreign.ID = "other"
-	if err = DiaPermission(service, foreign, "core:account:update")(context.Background(), id, GatewayRequest{}); !errors.Is(err, dia.ErrForbidden) {
-		t.Fatal("foreign subject allowed", err)
-	}
-	session.Terminated = "terminated"
-	state.put(claims.Context.Session, session)
-	if _, err = verify(context.Background(), token); !errors.Is(err, dia.ErrUnauthorized) {
-		t.Fatal("revoked session accepted", err)
-	}
-	session.Terminated = ""
-	state.put(claims.Context.Session, session)
-	wrong := jwt
-	wrong.Audience = "another-service"
-	wrongService := *service
-	wrongService.JWT = &wrong
-	wrongVerify, _ := DiaVerifier(&wrongService, "access")
-	if _, err = wrongVerify(context.Background(), token); !errors.Is(err, dia.ErrUnauthorized) {
-		t.Fatal("cross-service token accepted", err)
-	}
-	key := eventstore.Root{Network: "n", Service: "system", Domain: "key", ID: "key"}
-	claims.Kind = "connection"
-	claims.Context.Subject = key
-	state.put(key, dia.KeyState{Principal: claims.Context.Principal})
-	state.put(claims.Context.Principal, dia.PrincipalState{Subject: key})
-	token, err = jwt.Sign(context.Background(), claims)
-	if err != nil {
-		t.Fatal(err)
-	}
-	verify, _ = DiaVerifier(service, "connection")
-	if _, err = verify(context.Background(), token); err != nil {
-		t.Fatal(err)
-	}
-	state.put(key, dia.KeyState{Principal: claims.Context.Principal, Revoked: "revoked"})
-	if _, err = verify(context.Background(), token); !errors.Is(err, dia.ErrUnauthorized) {
-		t.Fatal("revoked key accepted", err)
-	}
-}
 func TestGatewayCredentialModesAndIsolation(t *testing.T) {
 	shared := authIdentity()
 	a := Authenticator{Bearer: func(context.Context, string) (Identity, error) { return shared, nil }, Basic: func(_ context.Context, user, password string) (Identity, error) {
 		if user != "key" || password != "secret:part" {
-			return Identity{}, dia.ErrUnauthorized
+			return Identity{}, authn.ErrUnauthorized
 		}
 		return authIdentity(), nil
 	}, Key: fixtureVerifier}
@@ -178,7 +90,7 @@ func TestGatewayExactRouteJobAndViewAuthority(t *testing.T) {
 	principal := eventstore.Root{Network: "n", Service: "core", Domain: "principal", ID: "p"}
 	check := func(_ context.Context, id Identity, in GatewayRequest) error {
 		if in.Name != "allowed" {
-			return dia.ErrForbidden
+			return authn.ErrForbidden
 		}
 		return nil
 	}
@@ -187,7 +99,7 @@ func TestGatewayExactRouteJobAndViewAuthority(t *testing.T) {
 		{Method: "GET", Pattern: "/view-composites/{name}", Name: "allowed", Operation: "composite"}: {Check: check, Scope: func(context.Context, Identity, GatewayRequest) (view.Scope, error) { return gatewayScope(), nil }},
 		{Method: "POST", Pattern: "/projections/{name}/play", Name: "allowed", Operation: "play"}: {Check: func(_ context.Context, _ Identity, in GatewayRequest) error {
 			if in.RootID != "owned" {
-				return dia.ErrForbidden
+				return authn.ErrForbidden
 			}
 			return nil
 		}, Projection: func(context.Context, Identity, GatewayRequest) (ProjectionBinding, error) {
@@ -243,18 +155,23 @@ func TestGatewayExactRouteJobAndViewAuthority(t *testing.T) {
 	r := authHTTPRequest("POST", "/projections/allowed/play")
 	r.Pattern = "POST /projections/{name}/play"
 	r.SetPathValue("name", "allowed")
-	if _, err = authority.Projection(r, ProjectionOperation{Name: "allowed", RootID: "foreign"}); !errors.Is(err, dia.ErrForbidden) {
+	if _, err = authority.Projection(r, ProjectionOperation{Name: "allowed", RootID: "foreign"}); !errors.Is(err, authn.ErrForbidden) {
 		t.Fatal(err)
 	}
 	if _, err = authority.Projection(r, ProjectionOperation{Name: "allowed", RootID: "owned"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = authority.Projection(r, ProjectionOperation{Name: "allowed", Replay: true}); !errors.Is(err, dia.ErrForbidden) {
+	if _, err = authority.Projection(r, ProjectionOperation{Name: "allowed", Replay: true}); !errors.Is(err, authn.ErrForbidden) {
 		t.Fatal("play grant became replay", err)
 	}
 }
 func TestGatewayPinnedServiceJWT(t *testing.T) {
-	jwt, claims := gatewayJWT(t)
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	jwt := token.JWT[command.Context]{Signer: token.LocalSigner{Key: key}, VerifyKey: &key.PublicKey, Issuer: "issuer", Audience: "n"}
+	claims := token.Claims[command.Context]{Issuer: "issuer", Audience: []string{"n"}, Subject: "p", ID: "jti", Kind: "access", NotBefore: time.Now().Unix() - 1, Expires: time.Now().Unix() + 600, Context: command.Context{}}
 	claims.Kind = "service"
 	claims.Subject = "peer"
 	verify, err := ServiceJWTVerifier(jwt, "peer")
@@ -289,10 +206,10 @@ func TestGatewayBodyResourceAuthorizationPreservesExecutionInput(t *testing.T) {
 		}
 		var principal eventstore.Root
 		if err := eventstore.Decode(id.Context["principal"], &principal); err != nil {
-			return dia.ErrForbidden
+			return authn.ErrForbidden
 		}
 		if root != principal {
-			return dia.ErrForbidden
+			return authn.ErrForbidden
 		}
 		return nil
 	}}})
@@ -301,19 +218,19 @@ func TestGatewayBodyResourceAuthorizationPreservesExecutionInput(t *testing.T) {
 	}
 	calls := 0
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /inspect", wrap(func(w http.ResponseWriter, r *http.Request) error {
+	mux.HandleFunc("POST /inspect", Wrap(func(w http.ResponseWriter, r *http.Request) error {
 		if _, err := authority.Framework(r); err != nil {
 			return err
 		}
 		var root eventstore.Root
-		if err := decode(w, r, &root); err != nil {
+		if err := Decode(w, r, &root); err != nil {
 			return err
 		}
 		if root != owned {
 			t.Fatal("authorized body changed")
 		}
 		calls++
-		return write(w, 200, root)
+		return Write(w, 200, root)
 	}))
 	for _, id := range []string{"p", "foreign"} {
 		root := owned
@@ -354,13 +271,13 @@ func TestGatewayProtectedContextsAndMissingRegistrations(t *testing.T) {
 	}
 	for _, contextJSON := range []string{`null`, `{"network":"n","service":"core","domain":"principal","id":"other"}`, `{"network":"foreign","service":"core","domain":"principal","id":"p"}`} {
 		identity.Context["principal"] = json.RawMessage(contextJSON)
-		if _, err = authority.Framework(request("POST", "run")); !errors.Is(err, dia.ErrForbidden) {
+		if _, err = authority.Framework(request("POST", "run")); !errors.Is(err, authn.ErrForbidden) {
 			t.Fatal("unprotected context", contextJSON, err)
 		}
 	}
 	identity = authIdentity()
 	for _, r := range []*http.Request{request("GET", "run"), request("POST", "unregistered")} {
-		if _, err = authority.Framework(r); !errors.Is(err, dia.ErrForbidden) {
+		if _, err = authority.Framework(r); !errors.Is(err, authn.ErrForbidden) {
 			t.Fatal("unregistered route", err)
 		}
 	}

@@ -1,3 +1,12 @@
+Current independent-framework evidence: [separation verification](SEPARATION.md).
+
+# Independent repository verification
+
+Earlier totals below describe the preserved combined implementation and initial
+public export. The current application separation moves domain/native/container
+checks to dia-go, and adds framework-boundary gates. New results will be recorded
+under separation verification; historical logs and source hashes remain unchanged.
+
 # Go verification record
 
 The records below describe the verified workspace snapshot before its public

@@ -15,7 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	cloudaws "github.com/mejango/blossm-toolbox-go/cloud/aws"
 	cloudgcp "github.com/mejango/blossm-toolbox-go/cloud/gcp"
-	"github.com/mejango/blossm-toolbox-go/dia"
+	"github.com/mejango/blossm-toolbox-go/security/authn"
 )
 
 type UploadLimits struct {
@@ -54,7 +54,7 @@ func (g UploadGateway) Handler() (http.Handler, error) {
 	if g.Authorize == nil || g.Store == nil || l.BodyBytes <= 0 || l.FileBytes <= 0 || l.FieldBytes <= 0 || l.Files < 0 || l.Fields < 0 || l.FileBytes > l.BodyBytes || l.FieldBytes > l.BodyBytes {
 		return nil, errors.New("upload requires authority, storage and bounded nonnegative counts/positive byte limits")
 	}
-	return wrap(func(w http.ResponseWriter, r *http.Request) error {
+	return Wrap(func(w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "POST" {
 			w.WriteHeader(405)
 			return nil
@@ -71,35 +71,35 @@ func (g UploadGateway) Handler() (http.Handler, error) {
 		form := UploadForm{Fields: fields, Objects: []UploadObject{}}
 		for _, file := range files {
 			if err = r.Context().Err(); err != nil {
-				return write(w, 504, map[string]any{"error": "upload interrupted", "objects": form.Objects})
+				return Write(w, 504, map[string]any{"error": "upload interrupted", "objects": form.Objects})
 			}
 			object, err := g.Store(r.Context(), identity, file)
 			if err != nil {
-				return write(w, 502, map[string]any{"error": "object storage acceptance uncertain", "objects": form.Objects, "uncertain": object})
+				return Write(w, 502, map[string]any{"error": "object storage acceptance uncertain", "objects": form.Objects, "uncertain": object})
 			}
 			if object.Bucket == "" || object.Key == "" {
-				return write(w, 502, map[string]any{"error": "object storage acknowledgment missing", "objects": form.Objects, "uncertain": object})
+				return Write(w, 502, map[string]any{"error": "object storage acknowledgment missing", "objects": form.Objects, "uncertain": object})
 			}
 			form.Objects = append(form.Objects, object)
 		}
 		if err := r.Context().Err(); err != nil {
-			return write(w, 504, map[string]any{"error": "upload interrupted", "objects": form.Objects})
+			return Write(w, 504, map[string]any{"error": "upload interrupted", "objects": form.Objects})
 		}
 		if g.Handle == nil {
-			return write(w, 200, form)
+			return Write(w, 200, form)
 		}
 		out, err := g.Handle(r.Context(), identity, form)
 		if err != nil {
-			return write(w, 500, map[string]any{"error": "uploaded objects require recovery", "objects": form.Objects})
+			return Write(w, 500, map[string]any{"error": "uploaded objects require recovery", "objects": form.Objects})
 		}
-		return write(w, 200, out)
+		return Write(w, 200, out)
 	}), nil
 }
 func parseGatewayUpload(w http.ResponseWriter, r *http.Request, l UploadLimits) (map[string]string, []UploadFile, error) {
 	r.Body = http.MaxBytesReader(w, r.Body, l.BodyBytes)
 	reader, err := r.MultipartReader()
 	if err != nil {
-		return nil, nil, dia.ErrInvalid
+		return nil, nil, authn.ErrInvalid
 	}
 	fields := map[string]string{}
 	var files []UploadFile
@@ -113,12 +113,12 @@ func parseGatewayUpload(w http.ResponseWriter, r *http.Request, l UploadLimits) 
 			break
 		}
 		if err != nil {
-			return nil, nil, dia.ErrInvalid
+			return nil, nil, authn.ErrInvalid
 		}
 		field := part.FormName()
 		if field == "" || len(field) > 256 || seen[field] {
 			part.Close()
-			return nil, nil, dia.ErrInvalid
+			return nil, nil, authn.ErrInvalid
 		}
 		seen[field] = true
 		isFile := part.FileName() != ""
@@ -126,17 +126,17 @@ func parseGatewayUpload(w http.ResponseWriter, r *http.Request, l UploadLimits) 
 		if isFile {
 			if len(files) >= l.Files {
 				part.Close()
-				return nil, nil, dia.ErrInvalid
+				return nil, nil, authn.ErrInvalid
 			}
 			limit = l.FileBytes
 		} else if len(fields) >= l.Fields {
 			part.Close()
-			return nil, nil, dia.ErrInvalid
+			return nil, nil, authn.ErrInvalid
 		}
 		data, err := io.ReadAll(io.LimitReader(part, limit+1))
 		closeErr := part.Close()
 		if err != nil || closeErr != nil || int64(len(data)) > limit {
-			return nil, nil, dia.ErrInvalid
+			return nil, nil, authn.ErrInvalid
 		}
 		if !isFile {
 			fields[field] = string(data)
@@ -147,14 +147,14 @@ func parseGatewayUpload(w http.ResponseWriter, r *http.Request, l UploadLimits) 
 			contentType = "application/octet-stream"
 		}
 		if _, _, err := mime.ParseMediaType(contentType); err != nil {
-			return nil, nil, dia.ErrInvalid
+			return nil, nil, authn.ErrInvalid
 		}
 		files = append(files, UploadFile{Field: field, Name: part.FileName(), ContentType: contentType, Data: data})
 	}
 	// MultipartReader stops at the closing delimiter; enforce total wire limit on
 	// epilogue bytes too, rather than allowing an unchecked trailing body.
 	if _, err := io.Copy(io.Discard, r.Body); err != nil {
-		return nil, nil, dia.ErrInvalid
+		return nil, nil, authn.ErrInvalid
 	}
 	return fields, files, nil
 }

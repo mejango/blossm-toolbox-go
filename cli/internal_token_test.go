@@ -7,21 +7,15 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
-	"encoding/json"
 	"encoding/pem"
 	"errors"
-	"net/http/httptest"
+	command "github.com/mejango/blossm-toolbox-go/procedures/command"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/mejango/blossm-toolbox-go/dia"
-	"github.com/mejango/blossm-toolbox-go/eventstore"
-	"github.com/mejango/blossm-toolbox-go/projection"
-	"github.com/mejango/blossm-toolbox-go/runtimeauth"
-	"github.com/mejango/blossm-toolbox-go/serviceapp"
-	"github.com/mejango/blossm-toolbox-go/transport"
+	"github.com/mejango/blossm-toolbox-go/security/token"
 )
 
 func internalConfig(t *testing.T, c Config) string {
@@ -38,11 +32,8 @@ func internalConfig(t *testing.T, c Config) string {
 }
 func internalExample() Config {
 	c := Example("gcp", "postgres")
-	c.Runtime = "framework"
-	c.Service = "documents"
-	c.InternalSubject = "configured-worker"
-	c.IdentityNamespace = "identity"
-	c.Delivery = deliveryExample("gcp")
+	c.Signing = &Signing{Provider: "local", Issuer: "issuer.example", Audience: "example.test", Subject: "configured-worker"}
+	c.Secrets["JWT_PRIVATE_KEY"] = Secret{Reference: "sample-jwt-key", Version: "1"}
 	return c
 }
 func internalSigningKey(t *testing.T) *ecdsa.PrivateKey {
@@ -64,7 +55,7 @@ func internalSigningKey(t *testing.T) *ecdsa.PrivateKey {
 
 func TestInternalTokenOfflineAndBounds(t *testing.T) {
 	file := internalConfig(t, internalExample())
-	e := Execution{Getenv: func(string) string { t.Fatal("offline read credentials"); return "" }, OpenJWT: func(context.Context, string) (*dia.JWT, func(), error) {
+	e := Execution{Getenv: func(string) string { t.Fatal("offline read credentials"); return "" }, OpenJWT: func(context.Context, string, string) (*token.JWT[command.Context], func(), error) {
 		t.Fatal("offline opened signer")
 		return nil, nil, nil
 	}}
@@ -82,99 +73,6 @@ func TestInternalTokenOfflineAndBounds(t *testing.T) {
 	}
 }
 
-type tokenRoots struct {
-	eventstore.Reader
-	root eventstore.Root
-}
-
-func (r tokenRoots) Roots(ctx context.Context, yield func(eventstore.Root) error) error {
-	return yield(r.root)
-}
-func (r tokenRoots) Count(context.Context, eventstore.Root) (int64, error) { return 1, nil }
-
-type tokenBackend struct {
-	eventstore.Backend
-	root eventstore.Root
-}
-
-func (b *tokenBackend) View(ctx context.Context, fn func(eventstore.Reader) error) error {
-	return fn(tokenRoots{root: b.root})
-}
-
-type tokenReplay struct{ requests []projection.Request }
-
-func (p *tokenReplay) Enqueue(_ context.Context, r projection.Request) error {
-	p.requests = append(p.requests, r)
-	return nil
-}
-
-func TestInternalTokenDrivesServiceAppReplay(t *testing.T) {
-	internalSigningKey(t)
-	c := internalExample()
-	ctx := context.Background()
-	jwt, close, err := runtimeauth.Open(ctx, c.Network)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer close()
-	verifier, err := transport.ServiceJWTVerifier(*jwt, c.InternalSubject)
-	if err != nil {
-		t.Fatal(err)
-	}
-	root := eventstore.Root{Network: c.Network, Service: c.Service, Domain: serviceapp.Domain, ID: "doc"}
-	backend := &tokenBackend{root: root}
-	identityBackend := &tokenBackend{root: root}
-	producer := &tokenReplay{}
-	identity := &dia.Service{Network: c.Network, JWT: jwt, Store: &eventstore.Store{Backend: identityBackend, Local: true}}
-	app, err := serviceapp.New(ctx, serviceapp.Config{Store: &eventstore.Store{Backend: backend, Local: true}, Identity: identity, Service: c.Service, Internal: verifier, Replay: producer})
-	if err != nil {
-		t.Fatal(err)
-	}
-	server := httptest.NewServer(app.Handler)
-	defer server.Close()
-	input := filepath.Join(t.TempDir(), "replay.json")
-	if err = os.WriteFile(input, []byte(`{"runId":"cli-run","limit":10}`), 0600); err != nil {
-		t.Fatal(err)
-	}
-	config := internalConfig(t, c)
-	for _, kind := range []string{"valid", "wrong-subject", "wrong-audience"} {
-		t.Run(kind, func(t *testing.T) {
-			minted := c
-			if kind == "wrong-subject" {
-				minted.InternalSubject = "other-worker"
-			}
-			if kind == "wrong-audience" {
-				minted.Network = "other.test"
-			}
-			var token, stderr bytes.Buffer
-			if err := Run(ctx, []string{"internal-token", "--config", internalConfig(t, minted), "--ttl", "2m", "--execute"}, &token, &stderr); err != nil {
-				t.Fatal(err)
-			}
-			value := strings.TrimSpace(token.String())
-			if kind == "valid" {
-				claims, err := jwt.Verify(value, "service")
-				if err != nil || claims.Subject != c.InternalSubject || len(claims.Audience) != 1 || claims.Audience[0] != c.Network || claims.Expires-claims.NotBefore != 120 || claims.ID == "" {
-					t.Fatal(claims, err)
-				}
-			}
-			before := len(producer.requests)
-			var output bytes.Buffer
-			e := Execution{HTTP: server.Client(), Getenv: func(string) string { return value }}
-			err := RunWith(ctx, []string{"replay", "--config", config, "--url", server.URL + "/projections/documents/replay", "--input", input, "--idempotency-key", "cli-replay", "--execute"}, &output, &stderr, e)
-			if kind == "valid" {
-				var ack transport.ProjectionReplayOutput
-				if err != nil || json.Unmarshal(output.Bytes(), &ack) != nil || ack.RunID != "cli-run" || ack.Enqueued != 1 || !ack.Complete || len(producer.requests) != before+1 || producer.requests[before].RunID != "cli-run" || producer.requests[before].Root != root {
-					t.Fatal("minted replay failed", ack, err)
-				}
-			} else {
-				if err == nil || !strings.Contains(err.Error(), "401") || len(producer.requests) != before {
-					t.Fatal("foreign authority accepted", err)
-				}
-			}
-		})
-	}
-}
-
 type tokenKMS struct {
 	key   *ecdsa.PrivateKey
 	calls int
@@ -189,14 +87,14 @@ func (k *tokenKMS) SignES256(ctx context.Context, key string, message []byte) ([
 	if k.fail {
 		return nil, errors.New("secret provider detail")
 	}
-	return (dia.LocalSigner{Key: k.key}).SignES256(ctx, message)
+	return (token.LocalSigner{Key: k.key}).SignES256(ctx, message)
 }
 func TestInternalTokenKMSSelectionAndFailures(t *testing.T) {
 	key := internalSigningKey(t)
 	for _, provider := range []string{"gcp", "aws"} {
 		for _, failure := range []string{"", "open", "sign", "mismatch"} {
 			c := internalExample()
-			c.Signing = Signing{Provider: provider, KMSKey: "key-ref"}
+			c.Signing.Provider, c.Signing.KMSKey = provider, "key-ref"
 			c.Secrets["JWT_PUBLIC_KEY"] = c.Secrets["JWT_PRIVATE_KEY"]
 			delete(c.Secrets, "JWT_PRIVATE_KEY")
 			opened, closed := 0, 0
@@ -214,16 +112,16 @@ func TestInternalTokenKMSSelectionAndFailures(t *testing.T) {
 				}
 				t.Fatal(name)
 				return ""
-			}, OpenJWT: func(got context.Context, network string) (*dia.JWT, func(), error) {
+			}, OpenJWT: func(got context.Context, issuer, audience string) (*token.JWT[command.Context], func(), error) {
 				opened++
-				if got != ctx || network != c.Network {
+				if got != ctx || issuer != c.Signing.Issuer || audience != c.Signing.Audience {
 					t.Fatal("lost context/network")
 				}
 				cleanup := func() { closed++ }
 				if failure == "open" {
 					return nil, cleanup, errors.New("secret provider detail")
 				}
-				return &dia.JWT{Signer: dia.KMSSigner{Client: kms, Key: c.Signing.KMSKey}, VerifyKey: &key.PublicKey, Issuer: "dia." + network, Audience: network}, cleanup, nil
+				return &token.JWT[command.Context]{Signer: token.KMSSigner{Client: kms, Key: c.Signing.KMSKey}, VerifyKey: &key.PublicKey, Issuer: issuer, Audience: audience}, cleanup, nil
 			}}
 			var out bytes.Buffer
 			err := RunWith(ctx, []string{"internal-token", "--config", internalConfig(t, c), "--execute"}, &out, &out, e)
@@ -249,7 +147,7 @@ func TestInternalTokenKMSSelectionAndFailures(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	var out bytes.Buffer
-	if err := RunWith(ctx, []string{"internal-token", "--config", internalConfig(t, internalExample()), "--execute"}, &out, &out, Execution{OpenJWT: func(context.Context, string) (*dia.JWT, func(), error) {
+	if err := RunWith(ctx, []string{"internal-token", "--config", internalConfig(t, internalExample()), "--execute"}, &out, &out, Execution{OpenJWT: func(context.Context, string, string) (*token.JWT[command.Context], func(), error) {
 		t.Fatal("opened cancelled signer")
 		return nil, nil, nil
 	}}); !errors.Is(err, context.Canceled) {

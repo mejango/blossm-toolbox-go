@@ -20,14 +20,8 @@ type Delivery struct {
 
 func (c Config) validateDelivery() error {
 	d := c.Delivery
-	if c.Runtime != "framework" {
-		if d != nil {
-			return errors.New("delivery requires framework runtime")
-		}
-		return nil
-	}
 	if d == nil {
-		return errors.New("framework requires delivery configuration")
+		return nil
 	}
 	if c.Provider == "gcp" {
 		parts := strings.Split(d.TasksQueue, "/")
@@ -35,8 +29,8 @@ func (c Config) validateDelivery() error {
 		if len(parts) != 6 || parts[0] != "projects" || parts[1] == "" || parts[2] != "locations" || parts[3] == "" || parts[4] != "queues" || parts[5] == "" {
 			return errors.New("delivery tasksQueue must name projects/.../locations/.../queues/...")
 		}
-		if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.Path != "/deliveries" || u.RawQuery != "" || u.Fragment != "" {
-			return errors.New("delivery URL must be an exact HTTPS /deliveries endpoint")
+		if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.Path == "" || u.RawQuery != "" || u.Fragment != "" {
+			return errors.New("delivery URL must be an exact HTTPS endpoint")
 		}
 		if strings.TrimSpace(d.Audience) == "" || strings.TrimSpace(d.ServiceAccount) != d.ServiceAccount || !strings.HasSuffix(d.ServiceAccount, ".gserviceaccount.com") || strings.Count(d.ServiceAccount, "@") != 1 || strings.HasPrefix(d.ServiceAccount, "@") {
 			return errors.New("delivery requires audience and exact Google service account")
@@ -49,7 +43,7 @@ func (c Config) validateDelivery() error {
 		if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.Path == "" || u.Path == "/" || u.RawQuery != "" || u.Fragment != "" {
 			return errors.New("delivery queueURL must name an HTTPS SQS queue")
 		}
-		if d.QueueURL == c.Publication.QueueURL {
+		if c.Publication != nil && d.QueueURL == c.Publication.QueueURL {
 			return errors.New("delivery and publication queues must be distinct")
 		}
 		fifo := strings.HasSuffix(d.QueueURL, ".fifo")

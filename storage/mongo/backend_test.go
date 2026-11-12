@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
 	driver "go.mongodb.org/mongo-driver/v2/mongo"
 )
 

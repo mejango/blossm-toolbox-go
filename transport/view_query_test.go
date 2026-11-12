@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mejango/blossm-toolbox-go/eventstore"
-	"github.com/mejango/blossm-toolbox-go/view"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
+	"github.com/mejango/blossm-toolbox-go/stores/view"
 )
 
 func TestViewNamedIsolationSameRootIDVersion(t *testing.T) {

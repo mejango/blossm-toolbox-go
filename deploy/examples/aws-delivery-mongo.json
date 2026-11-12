@@ -1,0 +1,57 @@
+{
+  "version": 2,
+  "application": {
+    "package": "./cmd/server",
+    "binary": "server",
+    "entrypoint": "/server"
+  },
+  "name": "sample-api",
+  "provider": "aws",
+  "image": "example.invalid/sample/server:review-required",
+  "port": 8080,
+  "secrets": {
+    "API_KEY": {
+      "reference": "arn:aws:secretsmanager:us-east-1:123456789012:secret:sample-api-key-AbCdEf"
+    }
+  },
+  "database": {
+    "driver": "mongo",
+    "name": "sample_app",
+    "namespace": "sample",
+    "secret": {
+      "reference": "arn:aws:secretsmanager:us-east-1:123456789012:secret:sample-database-AbCdEf"
+    }
+  },
+  "publication": {
+    "topic": "arn:aws:sns:us-east-1:123456789012:sample-events",
+    "queueURL": "https://sqs.us-east-1.amazonaws.com/123456789012/sample-projection",
+    "queueARN": "arn:aws:sqs:us-east-1:123456789012:sample-projection",
+    "rawMessageDelivery": true,
+    "maximumMessageSize": 262144
+  },
+  "aws": {
+    "region": "us-east-1",
+    "cluster": "blossm-cluster",
+    "executionRole": "arn:aws:iam::123456789012:role/sample-execution",
+    "taskRole": "arn:aws:iam::123456789012:role/sample-runtime",
+    "subnets": [
+      "subnet-0123456789abcdef0"
+    ],
+    "securityGroups": [
+      "sg-0123456789abcdef0"
+    ],
+    "logGroup": "/ecs/sample-api",
+    "targetGroupARN": "arn:aws:elasticloadbalancing:us-east-1:123456789012:targetgroup/sample-api/0123456789abcdef"
+  },
+  "delivery": {
+    "queueURL": "https://sqs.us-east-1.amazonaws.com/123456789012/sample-delivery",
+    "timeout": "1m"
+  },
+  "peers": {
+    "network": "example.test",
+    "service": "sample",
+    "outboundURL": "https://child.example.invalid",
+    "outboundService": "child",
+    "delegatedSubject": "example.test/parent"
+  }
+}

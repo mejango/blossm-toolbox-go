@@ -273,17 +273,17 @@ func TestScaffoldsCompileInOneModule(t *testing.T) {
 import (
  "context"
  "testing"
- "github.com/mejango/blossm-toolbox-go/job"
- "github.com/mejango/blossm-toolbox-go/projection"
- "github.com/mejango/blossm-toolbox-go/view"
- "github.com/mejango/blossm-toolbox-go/serviceapp"
+ "github.com/mejango/blossm-toolbox-go/procedures/job"
+ "github.com/mejango/blossm-toolbox-go/procedures/projection"
+ "github.com/mejango/blossm-toolbox-go/stores/view"
+ "github.com/mejango/blossm-toolbox-go/transport"
  g "fixture.test/gateway"
  j "fixture.test/job"
  p "fixture.test/projection"
  v "fixture.test/view_composite"
 )
 func TestGeneratedOwnerContracts(t *testing.T){
- if app,err:=g.New(context.Background(),serviceapp.Config{});err==nil || app!=nil{t.Fatal("gateway bypassed serviceapp configuration validation")}
+ if app,err:=g.New(context.Background(),transport.Framework{});err==nil || app!=nil{t.Fatal("gateway bypassed framework configuration validation")}
  var procedure job.Procedure=j.New(nil)
  if err:=procedure.Execute(context.Background(),job.Input{Payload:[]byte("{}")});err==nil{t.Fatal("missing job handler accepted")}
  var engine *projection.Engine=p.New(nil,nil,nil)

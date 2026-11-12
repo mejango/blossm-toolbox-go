@@ -6,11 +6,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	command "github.com/mejango/blossm-toolbox-go/procedures/command"
 	"io"
 	"time"
 
-	"github.com/mejango/blossm-toolbox-go/dia"
-	"github.com/mejango/blossm-toolbox-go/runtimeauth"
+	runtimeauth "github.com/mejango/blossm-toolbox-go/runtime/auth"
+	"github.com/mejango/blossm-toolbox-go/security/token"
 )
 
 // internalToken issues application service authority, not Google invocation or
@@ -35,11 +36,11 @@ func internalToken(ctx context.Context, args []string, out, stderr io.Writer, e 
 	if err != nil {
 		return err
 	}
-	if c.Runtime != "framework" || c.InternalSubject == "" {
-		return errors.New("internal-token requires framework internalSubject configuration")
+	if c.Signing == nil || c.Signing.Issuer == "" || c.Signing.Audience == "" || c.Signing.Subject == "" {
+		return errors.New("internal-token requires explicit signing issuer, audience and subject")
 	}
 	if !*execute {
-		return printPlan(out, map[string]any{"status": "prepared-only", "operation": "internal-token", "subject": c.InternalSubject, "audience": c.Network, "issuer": "dia." + c.Network, "signer": c.Signing.Provider, "ttl": ttl.String(), "note": "Explicit execution loads configured signer environment and prints a sensitive service JWT. No keys are fetched or signing performed during preparation. This is not a Google invocation or delegated-user credential."})
+		return printPlan(out, map[string]any{"status": "prepared-only", "operation": "internal-token", "subject": c.Signing.Subject, "audience": c.Signing.Audience, "issuer": c.Signing.Issuer, "signer": c.Signing.Provider, "ttl": ttl.String(), "note": "Explicit execution loads configured signer environment and prints a sensitive service JWT. No keys are fetched or signing performed during preparation. This is not a Google invocation or delegated-user credential."})
 	}
 	if err := ctx.Err(); err != nil {
 		return err
@@ -49,9 +50,9 @@ func internalToken(ctx context.Context, args []string, out, stderr io.Writer, e 
 	}
 	open := e.OpenJWT
 	if open == nil {
-		open = runtimeauth.Open
+		open = runtimeauth.Open[command.Context]
 	}
-	jwt, close, err := open(ctx, c.Network)
+	jwt, close, err := open(ctx, c.Signing.Issuer, c.Signing.Audience)
 	if close != nil {
 		defer close()
 	}
@@ -61,11 +62,11 @@ func internalToken(ctx context.Context, args []string, out, stderr io.Writer, e 
 		}
 		return errors.New("internal signer initialization failed")
 	}
-	if jwt == nil || close == nil || jwt.Issuer != "dia."+c.Network || jwt.Audience != c.Network {
+	if jwt == nil || close == nil || jwt.Issuer != c.Signing.Issuer || jwt.Audience != c.Signing.Audience {
 		return errors.New("internal signer returned inconsistent configured trust")
 	}
 	now := time.Now()
-	token, err := jwt.Sign(ctx, dia.Claims{Issuer: jwt.Issuer, Audience: []string{c.Network}, Subject: c.InternalSubject, Expires: now.Add(*ttl).Unix(), NotBefore: now.Unix(), ID: rand.Text(), Kind: "service"})
+	token, err := jwt.Sign(ctx, token.Claims[command.Context]{Issuer: jwt.Issuer, Audience: []string{c.Signing.Audience}, Subject: c.Signing.Subject, Expires: now.Add(*ttl).Unix(), NotBefore: now.Unix(), ID: rand.Text(), Kind: "service", Context: command.Context{}})
 	if err != nil {
 		if ctx.Err() != nil {
 			return ctx.Err()

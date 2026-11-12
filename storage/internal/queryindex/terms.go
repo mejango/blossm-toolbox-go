@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
 )
 
 // State returns deduplicated typed leaves. The original state is never mutated.

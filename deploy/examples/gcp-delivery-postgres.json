@@ -1,0 +1,49 @@
+{
+  "version": 2,
+  "application": {
+    "package": "./cmd/server",
+    "binary": "server",
+    "entrypoint": "/server"
+  },
+  "name": "sample-api",
+  "provider": "gcp",
+  "image": "example.invalid/sample/server:review-required",
+  "port": 8080,
+  "secrets": {
+    "API_KEY": {
+      "reference": "sample-api-key",
+      "version": "1"
+    }
+  },
+  "database": {
+    "driver": "postgres",
+    "namespace": "sample",
+    "secret": {
+      "reference": "sample-database",
+      "version": "1"
+    }
+  },
+  "publication": {
+    "topic": "projects/example-project/topics/sample-events",
+    "subscription": "projects/example-project/subscriptions/sample-projection"
+  },
+  "gcp": {
+    "project": "example-project",
+    "region": "us-central1",
+    "serviceAccount": "sample-api@example-project.iam.gserviceaccount.com",
+    "invocation": "application"
+  },
+  "delivery": {
+    "tasksQueue": "projects/example-project/locations/us-central1/queues/sample-delivery",
+    "url": "https://sample.example.invalid/deliveries",
+    "serviceAccount": "delivery@example-project.iam.gserviceaccount.com",
+    "audience": "https://sample.example.invalid"
+  },
+  "peers": {
+    "network": "example.test",
+    "service": "sample",
+    "outboundURL": "https://child.example.invalid",
+    "outboundService": "child",
+    "delegatedSubject": "example.test/parent"
+  }
+}

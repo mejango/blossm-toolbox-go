@@ -36,48 +36,42 @@ The retained runtime GCP encrypted-file secret adapter remains a separate API;
 its KMS/GCS format is not implicitly converted or migrated. AWS injection uses
 Secrets Manager ARN selectors. Neither example contains database credentials.
 
-The runtime contract emitted by the shared CLI configuration owner is:
+Config version2 names an explicit application executable:
 
-| Variable | Meaning |
+```json
+{"application":{"package":"./cmd/server","binary":"server","entrypoint":"/server"}}
+```
+
+`package` is a canonical local Go package, `binary` a basename, and `entrypoint`
+a clean absolute container path ending in that binary. Build uses the calling
+application's source; Cloud Run `command` and ECS `entryPoint` use that path.
+The image must actually contain it. No application executable is bundled or inferred.
+
+`env` contains application-defined strings and `secrets` provider references.
+Application startup/business requirements belong to the consumer's validator.
+The CLI validates infrastructure and rejects env/secret collisions. `PORT`, provider
+project/region and replay identity overrides are protected. Declared infrastructure
+blocks also protect their generated environment keys from application overrides.
+
+Optional integration contracts:
+
+| Block | Generated settings and validation |
 | --- | --- |
-| `PORT` | HTTP bind port; Cloud Run injects it, ECS supplies it |
-| `NETWORK` | Application network identity |
-| `LOCAL_MODE` | Always false in a cloud deployment |
-| `DATABASE_DRIVER` | postgres or mongo |
-| `DATABASE_NAMESPACE` | PostgreSQL schema or Mongo database namespace |
-| `POSTGRES_URL` | PostgreSQL credential/connection URL, injected from a secret |
-| `MONGODB_URI` | Mongo connection URL, injected from a secret |
-| `MONGODB_DATABASE` | Mongo database name, equal to namespace |
-| `JWT_SIGNER` | Explicit local, gcp or aws signer selection |
-| `JWT_PRIVATE_KEY` | Local signer only, literal PKCS8 P256 PEM secret |
-| `JWT_KMS_KEY`, `JWT_PUBLIC_KEY` | Cloud signer only, explicit KMS key identifier and pinned PKIX P256 PEM public key secret reference |
-| `DIA_HMAC_KEY` | Required secret containing base64 encoding of 32 random bytes |
-| `DIA_ENCRYPTION_KEY` | Separate required secret containing base64 encoding of 32 random bytes |
-| `PUBLISHER` | gcp or aws, matching deployment provider |
-| `PUBLICATION_TOPIC` | Full GCP topic resource or SNS topic ARN |
-| `PUBLICATION_SUBSCRIPTION` | GCP pull subscription for the projection consumer |
-| `PUBLICATION_QUEUE_URL` | AWS SQS URL for the projection consumer |
-| `GCP_PROJECT` | Configured GCP project when provider is gcp |
-| `AWS_REGION` | Configured region for AWS SDK initialization |
+| `database` | postgres/mongo driver, namespace, credential reference; emits `DATABASE_DRIVER`, `DATABASE_NAMESPACE`, `POSTGRES_URL` or `MONGODB_URI` and Mongo database |
+| `publication` | Exact provider topic and subscription/queue; emits `PUBLICATION_TOPIC` and subscription/queue env. AWS raw delivery and queue-size requirements below apply |
+| `signing` | `JWT_SIGNER`, optional `JWT_KMS_KEY`; local private-key or KMS pinned public-key secret reference, mutually exclusive |
+| `delivery` | Provider task/queue settings described below |
+| `peers` | Explicit `NETWORK`, `SERVICE`, paired outbound destination/service, optional exact delegated peer |
 
-The three cryptographic secret references and provider-specific publication/consumer
-resources are mandatory. Validation checks identifiers, not secret contents. The runtime
-must validate PEM/key lengths. Provision the topic/subscription or SNS-to-SQS delivery
-and grant publish/consume permissions explicitly; no artifact creates these resources.
-Examples are illustrative and cannot be called deployment-ready.
+Absent blocks generate no corresponding resource configuration or environment.
+Application env selects any runtime-specific publication mode or local-mode policy.
+The shared CLI does not require application-specific cryptographic secrets or an
+identity namespace. Consumers must validate those rules before calling `Prepare`.
+Generic examples are illustrative, not proof of resource existence or application readiness.
 
-Additional application secrets can be declared in `secrets`, keyed by environment
-name; reserved infrastructure variables cannot be overridden. Parent `cmd/dia`
-owns actual HTTP behavior and must consume this contract before deployment.
-Missing required authentication/service settings must fail startup, not silently
-downgrade protection. These artifacts do not establish runtime compatibility.
-
-`Dockerfile` builds cmd/dia, cmd/framework and cmd/blossm in a pinned official Go builder, then
-copies only binaries and CA certificates to a non-root scratch image. Go module
-download/build may use the network; the installed CLI init/validate/plan/generate
-commands do not. CLI test/build explicitly disable module/toolchain downloads and
-require pre-fetched dependencies. No credentials should enter the build context.
-The final image does not contain source or build-time files.
+CLI test/build disable module and toolchain downloads and require pre-fetched
+dependencies. Use the application's own image build and health-check configuration.
+No credentials should enter a build context.
 
 `make native` requires both database URLs and runs all integration-tagged suites
 with the race detector. `compose.integration.json` is a disposable localhost-only
@@ -85,14 +79,8 @@ fixture, not a production database configuration. CI initializes the Mongo
 replica set and fails on missing readiness, tests, formatting, vet, vulnerability,
 configuration or container checks. No job deploys or publishes anything.
 
-The active workflow definition is at the actual repository root:
-[.github/workflows/go-verify.yml](../.github/workflows/go-verify.yml).
-Its push/pull-request filters cover `blossm-go/**` and the workflow itself, and
-manual dispatch is available. All run steps use `blossm-go` as working directory;
-setup-go caches against `blossm-go/go.sum`. The inactive nested duplicate was
-removed. Every Make gate propagates failure; database logs/cleanup use explicit
-failure/always conditions. Local YAML/path checks passed; no remote workflow run
-is claimed; local whole-module checkpoints are recorded separately.
+Current CI and image ownership are recorded in the repository-root documentation.
+Local fixture checks do not imply a remote workflow run or deployment.
 
 ## Version and API provenance
 
@@ -113,13 +101,10 @@ request is claimed by generated artifacts or local validation.
 
 ## Local verification record
 
-Go1.27.4 is installed after user-approved downloads. Earlier Go1.27.1 scoped
-checks and failed container attempts before cmd/dia/dependency integration are
-historical, superseded by successful local image builds, CLI smoke and actual
-HTTP lifecycle tests. The image contains three executables. Parent owns current
-container/native/full-module/security results in [VERIFICATION](../docs/VERIFICATION.md)
-and [capabilities](../docs/capabilities.md); those records distinguish baseline
-passes from subsequent remediation. No old permission blocker remains.
+Go1.27.4 is installed after user-approved downloads. Previous monolithic image
+and native results are historical; the parent owns current split-module, container
+and security gates in the repository verification record. CLI-specific checks below
+exercise the generic schema independently of application sources.
 
 Owned CLI checks verify deterministic examples, provider/database combinations,
 empty-PATH offline preparation, subprocess and actual Go-test failure propagation,
@@ -174,64 +159,30 @@ check the shared publication size budget. No live calls or deployment performed.
 Provider references: [SQS queue attributes](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SetQueueAttributes.html)
 and [SNS raw message delivery](https://docs.aws.amazon.com/sns/latest/dg/sns-large-payload-raw-message-delivery.html).
 
-## Generic framework process
+## Optional delivery and peers
 
-The checked [GCP/PostgreSQL example](examples/gcp-framework-postgres.json) and
-[AWS/MongoDB example](examples/aws-framework-mongo.json) select `runtime: "framework"`.
-Cloud Run uses container `command: ["/framework"]`; ECS uses
-`entryPoint: ["/framework"]`. The reviewed image must contain that executable.
-These example identifiers do not prove resources, credentials or connectivity exist.
+The [GCP delivery example](examples/gcp-delivery-postgres.json) and
+[AWS delivery example](examples/aws-delivery-mongo.json) add delivery/peers to the
+basic examples. All use a generic `./cmd/server` application chosen by the consumer.
 
-Framework settings emit `SERVICE`, `INTERNAL_SUBJECT`, `DATABASE_NAMESPACE`,
-`IDENTITY_DATABASE_NAMESPACE` and `PUBLICATION_MODE`. Identity/document namespaces
-must differ. MongoDB shares the configured URI and physical database while using
-separate namespace prefixes; PostgreSQL uses the same URL with distinct namespaces.
-Remote plans set publication mode to the selected provider and retain existing
-publication topic/subscription or queue settings. Process-only `local` and `inline`
-modes are not cloud deployment plans; configure them explicitly when running locally.
+GCP delivery requires a full Tasks queue path, exact HTTPS endpoint, service account
+and audience. AWS delivery requires an HTTPS queue distinct from the publication
+queue, with `groupID` for FIFO only (maximum128 bytes), and optional timeout1s..11h.
+Settings emit `DELIVERY_*` environment variables. Endpoint routing and authenticated
+request handling remain the application's responsibility. Queue identifiers do not
+prove queue existence, permissions or endpoint reachability.
 
-Both processes use `runtimeauth`: `signing.provider` emits `JWT_SIGNER`. Local mode
-requires only the `JWT_PRIVATE_KEY` signing secret. Cloud mode emits `JWT_KMS_KEY`
-from `signing.kmsKey` and requires a `JWT_PUBLIC_KEY` secret reference, forbidding
-the private key. Runtime validates key type and pins verification trust. CLI
-preparation does not fetch keys, discover credentials or sign anything. Provision
-only the selected signer permission on the exact key separately.
+Replay identity is request-scoped: each request supplies `runId` and preserves it
+across retry/pages. Static replay run configuration and `REPLAY_RUN_ID` environment
+settings are forbidden. No declaration creates queues or broadens IAM permissions.
 
-Framework `delivery` names pre-existing command/replay resources, separate from
-publication consumers. GCP requires `tasksQueue`, exact HTTPS `/deliveries` `url`,
-`serviceAccount` and `audience`; these emit `DELIVERY_TASKS_QUEUE`, `DELIVERY_URL`,
-`DELIVERY_SERVICE_ACCOUNT`, `DELIVERY_AUDIENCE`. The runtime verifies Google issuer,
-verified email, exact service-account email and audience. AWS requires `queueURL`
-(`DELIVERY_QUEUE_URL`) distinct from the publication queue; FIFO additionally
-requires `groupID` (`DELIVERY_GROUP_ID`, maximum128 bytes). AWS `timeout`
-(`DELIVERY_TIMEOUT`) is a Go duration from1s through11h, default1m, covering a
-single message's poll/consume/ack with visibility timeout plus30s. GCP timeout is
-not configurable through this setting. Replay identity is request-scoped: the
-caller supplies required `runId` in each replay request and preserves it across
-retries/pages. Choose a new ID only for a deliberate new replay. Static
-`delivery.replayRunID` configuration and `REPLAY_RUN_ID` environment settings are
-not supported. These settings do not create queues or broaden IAM permissions.
-
-The CLI's offline gates reject missing delivery configuration, shared identity
-namespaces, mixed signing modes and unsafe delivery targets. Cross-service native
-flows and process/container gates are owned by their implementations and reported
-separately; no live deployment is inferred from successful plan generation.
-
-The [framework executable](../cmd/framework/README.md) mounts `/healthz`; use it
-for the framework target-group health check. Its [queue runtime contract](../runtimequeue/README.md)
-records worker cancellation, acknowledgment, retry and visibility limits. Local
-mode bypasses automatic publication, while inline mode retains outboxes and
-verified projections; neither promises async queue acceptance without a provider.
-
-Optional framework `peers` config binds `outboundURL` and `outboundService`
-together, emitting `OUTBOUND_URL` and `OUTBOUND_SERVICE`. Deployment endpoints
-require HTTPS. Optional `delegatedSubject` emits `DELEGATED_SUBJECT` and must be
-an exact `NETWORK/peer` in the configured identity network. The runtime derives
-outbound audience/Target as `NETWORK/OUTBOUND_SERVICE`, issuing subject as
-`NETWORK/SERVICE`, and incoming audience as `NETWORK/SERVICE`. No selectable
-outbound subject or network override exists. Local process tests may use loopback
-HTTP; cloud deployment plans do not. Endpoint ownership, shared identity-state
-access and least-privilege command/resource policies require explicit review.
+Optional peers require explicit `network` and `service`. `outboundURL` and
+`outboundService` must be paired; URLs require HTTPS without credentials, query or
+fragment. `delegatedSubject` must name one exact peer in the configured network.
+Identity segments cannot contain separators or whitespace. The CLI emits these
+settings without inferring access to a consumer's identity state or authorization
+policy. Application-specific namespace and peer requirements belong to that
+application's validator and tests.
 
 ## Cloud Run invocation and application credentials
 
@@ -244,9 +195,9 @@ edge, organization policy and exposure before execution. Preparation applies
 nothing. Google documents this setting and its required deployment permissions
 in [public invocation](https://docs.cloud.google.com/run/docs/authenticating/public).
 
-`iam` is supported only for Dia plans with the explicitly required authenticating
-edge/client; it emits `invoker-iam-disabled: "false"`. Framework GCP plans reject
-this mode because their in-container Tasks verifier requires an intact signed token. A custom application JWT alone is
+`iam` emits `invoker-iam-disabled: "false"` and requires an explicitly configured
+authenticating edge/client. GCP plans with delivery reject this mode because
+the in-container Tasks verifier requires an intact signed token. A custom application JWT alone is
 insufficient for the platform check. Use an explicitly configured authenticating
 edge/client with a Google ID token in `X-Serverless-Authorization` and the
 application token in `Authorization`; the former takes precedence for the
@@ -262,9 +213,9 @@ describes signature removal for `X-Serverless-Authorization`, and its
 documents redaction for the described gcloud-issued-token cases. The
 [Cloud Tasks API](https://docs.cloud.google.com/tasks/docs/reference/rpc/google.cloud.tasks.v2#httprequest)
 places OIDC credentials in `Authorization`. These sources do not conclusively
-establish intact forwarding for every Tasks/IAM combination. The framework/IAM
+establish intact forwarding for every Tasks/IAM combination. The delivery/IAM
 combination is therefore conservatively unsupported, not proven universally
-broken. Application mode remains the explicit checked framework configuration.
+broken. Application mode remains the explicit checked delivery configuration.
 
 Prepared plans require operator retry limits, retention, poison-message recovery
 and redrive decisions. Provision AWS SQS DLQ/redrive separately, accounting for

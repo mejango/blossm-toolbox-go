@@ -9,10 +9,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/mejango/blossm-toolbox-go/command"
-	"github.com/mejango/blossm-toolbox-go/dia"
-	"github.com/mejango/blossm-toolbox-go/eventstore"
-	"github.com/mejango/blossm-toolbox-go/view"
+	"github.com/mejango/blossm-toolbox-go/procedures/command"
+	"github.com/mejango/blossm-toolbox-go/security/authn"
+	"github.com/mejango/blossm-toolbox-go/security/token"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
+	"github.com/mejango/blossm-toolbox-go/stores/view"
 )
 
 type TokenVerifier func(context.Context, string) (Identity, error)
@@ -35,16 +36,16 @@ func (a Authenticator) Authenticate(r *http.Request) (Identity, error) {
 	}
 	headers := r.Header.Values("Authorization")
 	if len(headers) > 1 {
-		return zero, dia.ErrUnauthorized
+		return zero, authn.ErrUnauthorized
 	}
 	keyValues := r.Header.Values("X-API-Key")
 	if len(keyValues) > 1 {
-		return zero, dia.ErrUnauthorized
+		return zero, authn.ErrUnauthorized
 	}
 	hasHeader := len(headers) > 0
 	hasKey := len(keyValues) > 0
 	if (hasHeader && len(headers[0]) > 16384) || (hasKey && len(keyValues[0]) > 16384) {
-		return zero, dia.ErrUnauthorized
+		return zero, authn.ErrUnauthorized
 	}
 	cookieToken := ""
 	if a.Cookies != nil {
@@ -55,7 +56,7 @@ func (a Authenticator) Authenticate(r *http.Request) (Identity, error) {
 		}
 	}
 	if (hasHeader && hasKey) || ((hasHeader || hasKey) && cookieToken != "") {
-		return zero, dia.ErrUnauthorized
+		return zero, authn.ErrUnauthorized
 	}
 	var identity Identity
 	var err error
@@ -63,7 +64,7 @@ func (a Authenticator) Authenticate(r *http.Request) (Identity, error) {
 	case hasHeader:
 		scheme, value, ok := strings.Cut(headers[0], " ")
 		if !ok || value == "" || strings.ContainsAny(value, " \t\r\n") {
-			return zero, dia.ErrUnauthorized
+			return zero, authn.ErrUnauthorized
 		}
 		switch {
 		case strings.EqualFold(scheme, "Bearer") && a.Bearer != nil:
@@ -71,30 +72,30 @@ func (a Authenticator) Authenticate(r *http.Request) (Identity, error) {
 		case strings.EqualFold(scheme, "Basic") && a.Basic != nil:
 			user, password, ok := r.BasicAuth()
 			if !ok || user == "" || password == "" {
-				return zero, dia.ErrUnauthorized
+				return zero, authn.ErrUnauthorized
 			}
 			identity, err = a.Basic(r.Context(), user, password)
 		default:
-			return zero, dia.ErrUnauthorized
+			return zero, authn.ErrUnauthorized
 		}
 	case hasKey:
 		if a.Key == nil || keyValues[0] == "" || strings.TrimSpace(keyValues[0]) != keyValues[0] {
-			return zero, dia.ErrUnauthorized
+			return zero, authn.ErrUnauthorized
 		}
 		identity, err = a.Key(r.Context(), keyValues[0])
 	case cookieToken != "":
 		if a.Bearer == nil {
-			return zero, dia.ErrUnauthorized
+			return zero, authn.ErrUnauthorized
 		}
 		identity, err = a.Bearer(r.Context(), cookieToken)
 	default:
 		if a.Optional {
 			return zero, nil
 		}
-		return zero, dia.ErrUnauthorized
+		return zero, authn.ErrUnauthorized
 	}
 	if err != nil {
-		return zero, dia.ErrUnauthorized
+		return zero, authn.ErrUnauthorized
 	}
 	if err = r.Context().Err(); err != nil {
 		return zero, err
@@ -102,38 +103,17 @@ func (a Authenticator) Authenticate(r *http.Request) (Identity, error) {
 	// Detach verifier-owned maps/bytes before any route policy can mutate them.
 	encoded, err := eventstore.Encode(identity)
 	if err != nil {
-		return zero, dia.ErrUnauthorized
+		return zero, authn.ErrUnauthorized
 	}
 	var detached Identity
 	if err = eventstore.Decode(encoded, &detached); err != nil {
-		return zero, dia.ErrUnauthorized
+		return zero, authn.ErrUnauthorized
 	}
 	var claims map[string]json.RawMessage
 	if eventstore.Decode(detached.Claims, &claims) != nil || len(claims) == 0 {
-		return zero, dia.ErrUnauthorized
+		return zero, authn.ErrUnauthorized
 	}
 	return detached, nil
-}
-
-// DiaVerifier delegates to persisted session/scene or connection/key revocation
-// checks, not merely JWT signature verification. Select one kind per service.
-func DiaVerifier(service *dia.Service, kind string) (TokenVerifier, error) {
-	if service == nil || (kind != "access" && kind != "connection") {
-		return nil, errors.New("Dia service and access/connection kind required")
-	}
-	return func(ctx context.Context, token string) (Identity, error) {
-		var c dia.Claims
-		var err error
-		if kind == "access" {
-			c, err = service.AuthenticateAccess(ctx, token)
-		} else {
-			c, err = service.AuthenticateConnection(ctx, token)
-		}
-		if err != nil {
-			return Identity{}, err
-		}
-		return identityFromClaims(c)
-	}, nil
 }
 
 // GatewayRoute.Pattern is the registered ServeMux path pattern without a method,
@@ -204,30 +184,30 @@ func (a *GatewayAuthority) authorize(r *http.Request, op, name, rootID string) (
 		pattern = path
 	}
 	if name != r.PathValue("name") {
-		return zero, GatewayPolicy{}, dia.ErrForbidden
+		return zero, GatewayPolicy{}, authn.ErrForbidden
 	}
 	policy, ok := a.routes[GatewayRoute{Method: r.Method, Pattern: pattern, Name: name, Operation: op}]
 	if !ok {
-		return zero, policy, dia.ErrForbidden
+		return zero, policy, authn.ErrForbidden
 	}
 	identity, err := a.auth.Authenticate(r)
 	if err != nil {
 		return zero, policy, err
 	}
 	if err = command.RequireContext(identity.Context, policy.RequiredContexts); err != nil {
-		return zero, policy, dia.ErrForbidden
+		return zero, policy, authn.ErrForbidden
 	}
 	for name, refs := range policy.AllowedContexts {
 		var actual eventstore.Root
 		if eventstore.Decode(identity.Context[name], &actual) != nil {
-			return zero, policy, dia.ErrForbidden
+			return zero, policy, authn.ErrForbidden
 		}
 		matched := false
 		for _, ref := range refs {
 			matched = matched || ref == actual
 		}
 		if !matched {
-			return zero, policy, dia.ErrForbidden
+			return zero, policy, authn.ErrForbidden
 		}
 	}
 	if err = policy.Check(r.Context(), identity, GatewayRequest{r, op, name, rootID}); err != nil {
@@ -245,7 +225,7 @@ func (a *GatewayAuthority) View(r *http.Request, operation, name string) (view.S
 		return view.Scope{}, err
 	}
 	if p.Scope == nil {
-		return view.Scope{}, dia.ErrForbidden
+		return view.Scope{}, authn.ErrForbidden
 	}
 	return p.Scope(r.Context(), identity, GatewayRequest{r, operation, name, r.PathValue("id")})
 }
@@ -259,30 +239,15 @@ func (a *GatewayAuthority) Projection(r *http.Request, op ProjectionOperation) (
 		return ProjectionBinding{}, err
 	}
 	if p.Projection == nil {
-		return ProjectionBinding{}, dia.ErrForbidden
+		return ProjectionBinding{}, authn.ErrForbidden
 	}
 	return p.Projection(r.Context(), identity, GatewayRequest{r, operation, op.Name, op.RootID})
-}
-
-// DiaPermission checks one exact subject selected by trusted application policy.
-// Never accept an owner/context from the body as the authenticated identity.
-func DiaPermission(service *dia.Service, subject eventstore.Root, permission string) GatewayCheck {
-	return func(ctx context.Context, identity Identity, _ GatewayRequest) error {
-		if service == nil || subject.ID == "" || permission == "" {
-			return dia.ErrForbidden
-		}
-		var claims dia.Claims
-		if eventstore.Decode(identity.Claims, &claims) != nil {
-			return dia.ErrUnauthorized
-		}
-		return service.RequirePermission(ctx, claims, subject, permission)
-	}
 }
 
 // ServiceJWTVerifier pins issuer/audience/key through JWT and requires the exact
 // configured peer subject and service token kind. It never accepts an access
 // token as an internal service credential.
-func ServiceJWTVerifier(jwt dia.JWT, subject string) (TokenVerifier, error) {
+func ServiceJWTVerifier[C any](jwt token.JWT[C], subject string) (TokenVerifier, error) {
 	if subject == "" || jwt.VerifyKey == nil || jwt.Issuer == "" || jwt.Audience == "" {
 		return nil, errors.New("pinned service JWT identity required")
 	}
@@ -292,12 +257,12 @@ func ServiceJWTVerifier(jwt dia.JWT, subject string) (TokenVerifier, error) {
 		}
 		c, err := jwt.Verify(token, "service")
 		if err != nil || c.Subject != subject {
-			return Identity{}, dia.ErrUnauthorized
+			return Identity{}, authn.ErrUnauthorized
 		}
-		return identityFromClaims(c)
+		return IdentityFromClaims(c)
 	}, nil
 }
-func identityFromClaims(c dia.Claims) (Identity, error) {
+func IdentityFromClaims[C any](c token.Claims[C]) (Identity, error) {
 	raw, err := eventstore.Encode(c.Context)
 	if err != nil {
 		return Identity{}, err
@@ -315,12 +280,12 @@ func identityFromClaims(c dia.Claims) (Identity, error) {
 // procedure. Decode the complete owning request type, not a permissive subset.
 func InspectGatewayJSON(r *http.Request, dst any) error {
 	if r.Body == nil {
-		return dia.ErrInvalid
+		return authn.ErrInvalid
 	}
 	original := r.Body
 	var captured bytes.Buffer
 	r.Body = io.NopCloser(io.TeeReader(original, &captured))
-	err := decode(nil, r, dst)
+	err := Decode(nil, r, dst)
 	r.Body = io.NopCloser(bytes.NewReader(captured.Bytes()))
 	_ = original.Close()
 	return err

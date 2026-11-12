@@ -1,7 +1,7 @@
 # Blossm offline CLI
 
 The CLI uses strict versioned JSON, a deliberate internal redesign of Toolbox's
-YAML/template system. One module owns the complete runtime. It does not recreate
+YAML/template system. The CLI operates on the calling application’s module. It does not recreate
 154 npm modules or silently provide successful deployment stubs.
 
 From the Go module root, first fetch reviewed dependencies and compile the CLI:
@@ -23,8 +23,8 @@ bin/blossm build --out bin
 `init` refuses to overwrite a file. It creates example identifiers with mode0600;
 replace them with your reviewed resources and image. `validate` rejects unknown
 fields, duplicate JSON keys, multiple JSON values, invalid provider/database
-selection, cloud local-mode bypass, malformed resource/secret references and
-reserved secret environment names. Configuration is limited to1MiB.
+selection, unsafe executable paths, malformed resource/secret references and
+reserved infrastructure overrides and env/secret collisions. Configuration is limited to1MiB.
 
 `plan` and `deploy --dry-run` print the same deterministic JSON and write nothing.
 `generate` writes provider artifacts plus `plan.json` to a new directory, refusing
@@ -36,7 +36,8 @@ explicit `--execute` invokes the provider. `--execute --dry-run` is rejected.
 `test` invokes actual Go tests in `--dir` (default current directory), propagating
 subprocess failure/exit status. `--race` enables the race detector; `--integration`
 requires both POSTGRES_URL and MONGODB_URI and enables the integration build tag.
-`build` compiles cmd/blossm, cmd/dia and cmd/framework. A missing executable
+`build --dir APP --config blossm.json` compiles only `application.package` to
+`--out/application.binary`. Relative config and output paths resolve inside `--dir`. A missing executable
 or compilation errors fail the build. Neither command claims success on missing
 source or prerequisites. Both set GOPROXY=off, GOSUMDB=off, GOTOOLCHAIN=local and
 GOWORK=off, so dependencies/toolchain must already be available. Tests themselves
@@ -63,7 +64,7 @@ and gateway. They inject required business behavior rather than returning fake
 success. Job/reducer/projection/gateway adapters fail when required handlers are
 absent. Commands/facts reuse their existing framework owners. Projection templates
 bind authoritative root/version before persistence. Gateways require an explicit
-authentication/permission callback. Register generated handlers in cmd/dia.
+authentication/permission callback. Register generated handlers in your application executable.
 Scaffolding refuses an existing output directory; source is gofmt-formatted.
 
 The following commands prepare offline by default. Add `--execute` only when
@@ -77,8 +78,8 @@ bin/blossm replay --config blossm.json --url https://service.example/projections
 # Upload reviewed application role definitions, without changing IAM.
 bin/blossm roles --action upload --config blossm.json --input roles.json --destination gs://example-bucket/roles.json
 # Supply secret bytes in SECRET_VALUE, never as a command argument.
-bin/blossm secret --action create --config blossm.json --name dia-hmac-key --value-env SECRET_VALUE
-bin/blossm secret --action put --config blossm.json --name dia-hmac-key --value-env SECRET_VALUE
+bin/blossm secret --action create --config blossm.json --name sample-api-key --value-env SECRET_VALUE
+bin/blossm secret --action put --config blossm.json --name sample-api-key --value-env SECRET_VALUE
 bin/blossm queue --action create --config blossm.json --name projection-queue --rate 100 --concurrency 10
 bin/blossm queue --action update --config blossm.json --name projection-queue --rate 50 --concurrency 5
 bin/blossm queue --action delete --config blossm.json --name projection-queue
@@ -148,41 +149,32 @@ AWS publication config requires exact queueARN, rawMessageDelivery=true and
 maximumMessageSize>=262144. Plans include separate publication preparation argv
 and artifacts; see the deployment guide for application and verification steps.
 
-Gateway scaffolds expose `New(ctx, serviceapp.Config)` and delegate to
-`serviceapp.New`, which composes the document command, fact, job, projection,
-named view, internal store/delivery routes and Dia identity HTTP routes. Supply
-separate identity/document backend namespaces and outboxes, the exact trusted
-internal service verifier, and the selected queue/replay/publication adapters.
-The returned `App.Handler` is an actual HTTP handler; the caller owns the HTTP
-server, background workers, cancellation and backend closure. The parent-owned
-`cmd/framework` provides process/environment composition. The scaffold neither
-creates databases nor executes cloud resource commands.
+Gateway scaffolds expose `New(ctx, transport.Framework)` and delegate to its
+`Handler` method. Supply authenticated route checks and the stores, procedures,
+views or projections your application needs. The caller owns the HTTP server,
+background workers, cancellation and backend closure. No application source or
+identity database is imported by generated code.
 
-Custom gateway extensions use the [owning transport contract](../transport/tasks/auth_gateway.md):
-register exact `GatewayRoute` policies with required resource `Check`, using
-`DiaVerifier` or a subject-pinned `ServiceJWTVerifier`. Browser credentials are
-opt-in typed `{type,value,expires}` cookie contributions with `__Host-` names,
-exact HTTPS origins and CSRF checks. Uploads require explicit limits and storage;
-`FactProxy` requires a fixed RPC destination and an `Upstream` credential callback.
-The generator delegates default route composition to `serviceapp`; it does not
-install permissive extension policies.
+Custom extensions use the [transport contract](../transport/tasks/auth_gateway.md).
+Register exact `GatewayRoute` policies with required resource checks and an
+application-supplied identity verifier or subject-pinned `ServiceJWTVerifier`.
+Cookies require typed contributions, exact HTTPS origins and CSRF checks. Uploads
+require explicit limits/storage; `FactProxy` requires a fixed destination and
+upstream credential callback. Generated handlers do not install permissive policies.
 
-Deployment configs require `runtime: "dia"` or `"framework"` and explicit
-`signing.provider: "local"|"gcp"|"aws"`. Cloud signing requires `signing.kmsKey`
-and a `JWT_PUBLIC_KEY` secret reference; local signing requires `JWT_PRIVATE_KEY`.
-Mixed private/KMS settings fail validation. Framework configs additionally require
-`service`, `internalSubject`, distinct `identityNamespace`, and `delivery` resources.
-See the [framework examples](../deploy/examples/gcp-framework-postgres.json) and
-[deployment contract](../deploy/README.md). Plans select `/framework` explicitly;
-queue and publication preparation remains offline and never discovers credentials.
+Config version2 requires `application: {"package":"./cmd/server","binary":"server",
+"entrypoint":"/server"}`. `env` contains application settings; `secrets` contains
+provider secret references. The optional `database`, `publication`, `signing`,
+`delivery` and `peers` blocks are validated only when declared. Application-specific
+secret requirements, identity stores and startup policy belong to the consumer's
+validator. See [deployment schema](../deploy/README.md).
 
-For nested commands, `DelegatedCommandAuthorizer` requires authenticated parent
-Main context, a signing JWT whose audience is the exact target `network/service`,
-a fixed outbound RPC endpoint and `CommandClient.Target`, exact peer subject,
-and the shared Dia state service. The child uses `DelegatedCommandGateway` or
-`DelegatedCommandVerifier` with mandatory `DelegatedCommandCheck`, alongside
-explicit command/resource permissions. These command credentials are separate
-from delivery, store-peer and job credentials; do not reuse their verifiers.
+Optional signing selects `local`, `gcp` or `aws`. Local signing requires a
+`JWT_PRIVATE_KEY` reference; KMS signing requires `kmsKey` and `JWT_PUBLIC_KEY`,
+forbidding private-key settings. Optional peers declare explicit `network` and
+`service`; outbound URL/service must be paired, and incoming delegated subject
+must identify one exact peer in that network. These declarations do not create
+authorization policies or discover routes.
 
 Replay input is the owning `ProjectionReplayInput`, for example
 `{"runId":"rebuild-2026-11-12-01","after":"","limit":100}`. `runId` is required
@@ -206,12 +198,12 @@ bin/blossm internal-token --config blossm.json --ttl 2m
 bin/blossm internal-token --config blossm.json --ttl 2m --execute
 ```
 
-The framework config fixes `internalSubject` and network audience; there are no
-subject/audience override flags. TTL defaults to5m and is limited to1s..5m.
+`signing.issuer`, `signing.audience` and `signing.subject` fix token identity;
+all three are required for internal-token, with no identity override flags. TTL defaults to5m and is limited to1s..5m.
 Before explicit execution, load the matching `JWT_SIGNER` and signing-key
 variables from the already-authorized secret source: local PKCS8 P256 private
 PEM, or cloud KMS key and pinned public PEM. They must correspond to the config's
-secret references. `runtimeauth.Open` and `dia.JWT.Sign` perform the signing;
+secret references. `runtime/auth.Open` and `security/token.JWT.Sign` perform the signing;
 the CLI does not fetch secrets or grant signer access. Cloud execution can call
 KMS and requires its existing authority. Do not log or commit stdout tokens.
 Supply the resulting token through the replay command's named bearer environment.
@@ -225,10 +217,9 @@ Internal service JWTs use strict timestamp validation. The signing workstation a
 service clocks must be synchronized; the issuer does not silently extend the
 validity window with clock-skew allowances.
 
-Framework GCP plans require `gcp.invocation: "application"`. The IAM mode is
+GCP plans with `delivery` require `gcp.invocation: "application"`. IAM mode is
 rejected for this composition because intact Cloud Tasks token forwarding to the
-in-container signature validator has not been verified. Dia IAM mode still
-requires the explicitly configured authenticating edge described in deployment
-docs. Local `job`/`replay` requests can use `http://localhost`, `127.0.0.0/8` or
-IPv6 loopback literal addresses; remote plaintext HTTP remains rejected before
+in-container signature validator has not been verified. Without delivery, IAM mode
+requires an explicitly configured authenticating edge/client. Local `job`/`replay`
+requests permit literal loopback HTTP; remote plaintext HTTP is rejected before
 credential access. DNS names resolving to loopback do not qualify automatically.

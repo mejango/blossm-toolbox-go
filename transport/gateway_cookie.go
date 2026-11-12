@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mejango/blossm-toolbox-go/command"
-	"github.com/mejango/blossm-toolbox-go/dia"
-	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/procedures/command"
+	"github.com/mejango/blossm-toolbox-go/security/authn"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
 )
 
 type CookiePolicy struct {
@@ -72,7 +72,7 @@ func oneCookie(r *http.Request, name string) (string, error) {
 		}
 	}
 	if count > 1 || (count == 1 && value == "") {
-		return "", dia.ErrUnauthorized
+		return "", authn.ErrUnauthorized
 	}
 	return value, nil
 }
@@ -85,14 +85,14 @@ func (p CookiePolicy) checkOrigin(r *http.Request, required bool) error {
 		return nil
 	}
 	if len(origins) != 1 {
-		return dia.ErrForbidden
+		return authn.ErrForbidden
 	}
 	for _, allowed := range p.Origins {
 		if origins[0] == allowed {
 			return nil
 		}
 	}
-	return dia.ErrForbidden
+	return authn.ErrForbidden
 }
 func (p CookiePolicy) credential(r *http.Request) (string, error) {
 	if err := p.validate(); err != nil {
@@ -108,11 +108,11 @@ func (p CookiePolicy) credential(r *http.Request) (string, error) {
 	if unsafeGatewayMethod(r.Method) {
 		csrf, err := oneCookie(r, "__Host-csrf")
 		if err != nil {
-			return "", dia.ErrForbidden
+			return "", authn.ErrForbidden
 		}
 		values := r.Header.Values("X-CSRF-Token")
 		if csrf == "" || len(values) != 1 || subtle.ConstantTimeCompare([]byte(csrf), []byte(values[0])) != 1 {
-			return "", dia.ErrForbidden
+			return "", authn.ErrForbidden
 		}
 	}
 	return value, nil
@@ -225,7 +225,7 @@ func CookieGateway(next http.Handler, policy CookiePolicy, paths []string, maxRe
 	if len(selected) == 0 {
 		return nil, errors.New("command paths required")
 	}
-	return wrap(func(w http.ResponseWriter, r *http.Request) error {
+	return Wrap(func(w http.ResponseWriter, r *http.Request) error {
 		if !selected[r.URL.Path] {
 			next.ServeHTTP(w, r)
 			return nil
@@ -238,13 +238,13 @@ func CookieGateway(next http.Handler, policy CookiePolicy, paths []string, maxRe
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		if r.Method == "OPTIONS" {
 			if r.Header.Get("Access-Control-Request-Method") != "POST" {
-				return dia.ErrForbidden
+				return authn.ErrForbidden
 			}
 			for _, name := range strings.Split(r.Header.Get("Access-Control-Request-Headers"), ",") {
 				switch strings.ToLower(strings.TrimSpace(name)) {
 				case "", "authorization", "content-type", "idempotency-key", "x-csrf-token", "x-api-key":
 				default:
-					return dia.ErrForbidden
+					return authn.ErrForbidden
 				}
 			}
 			w.Header().Set("Access-Control-Allow-Methods", "POST")
@@ -299,7 +299,7 @@ func CookieGateway(next http.Handler, policy CookiePolicy, paths []string, maxRe
 			for _, cookie := range prepared.header.Values("Set-Cookie") {
 				w.Header().Add("Set-Cookie", cookie)
 			}
-			return write(w, status, out)
+			return Write(w, status, out)
 		}
 		for k, values := range forwardGatewayHeaders(response.header) {
 			w.Header()[k] = values

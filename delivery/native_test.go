@@ -19,10 +19,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/jackc/pgx/v5"
 	cloudaws "github.com/mejango/blossm-toolbox-go/cloud/aws"
-	"github.com/mejango/blossm-toolbox-go/command"
-	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/procedures/command"
 	mongostore "github.com/mejango/blossm-toolbox-go/storage/mongo"
 	"github.com/mejango/blossm-toolbox-go/storage/postgres"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
 	driver "go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )

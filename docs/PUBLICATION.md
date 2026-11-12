@@ -1,3 +1,12 @@
+# Repository ownership correction
+
+The initial publication below is historical. The independent-application refactor
+moves all Dia models, services, runtime, HTTP policy and application tests into
+dia-go. Toolbox owns only generic framework facilities and has no Dia dependency.
+See README.md and docs/ARCHITECTURE.md at this revision for current ownership.
+Fresh refactor verification is recorded separately; initial publication results
+are not evidence for later source changes.
+
 # Standalone repositories
 
 `github.com/mejango/blossm-toolbox-go` is the owning shared module. Its reusable
