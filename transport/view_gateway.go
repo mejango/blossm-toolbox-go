@@ -10,11 +10,11 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/mejango/blossm-toolbox-go/dia"
-	"github.com/mejango/blossm-toolbox-go/eventstore"
-	"github.com/mejango/blossm-toolbox-go/fact"
+	"github.com/mejango/blossm-toolbox-go/procedures/fact"
 	"github.com/mejango/blossm-toolbox-go/rpc"
-	"github.com/mejango/blossm-toolbox-go/view"
+	"github.com/mejango/blossm-toolbox-go/security/authn"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
+	"github.com/mejango/blossm-toolbox-go/stores/view"
 )
 
 // ViewComposite callbacks are trusted application code. They must use the
@@ -39,7 +39,7 @@ func TypedViewComposite[Q, R any](readers map[string]view.ComponentReader, read 
 			raw = json.RawMessage(`{}`)
 		}
 		if err := eventstore.Decode(raw, &q); err != nil {
-			return q, dia.ErrInvalid
+			return q, authn.ErrInvalid
 		}
 		return q, nil
 	}
@@ -127,13 +127,13 @@ func (g ViewGateway) Handler() (http.Handler, error) {
 	}
 	mux := http.NewServeMux()
 	auth := func(operation string, fn func(http.ResponseWriter, *http.Request, view.Scope) error) http.HandlerFunc {
-		return wrap(func(w http.ResponseWriter, r *http.Request) error {
+		return Wrap(func(w http.ResponseWriter, r *http.Request) error {
 			scope, err := g.Authorize(r, operation, r.PathValue("name"))
 			if err != nil {
-				if errors.Is(err, dia.ErrForbidden) {
-					return dia.ErrForbidden
+				if errors.Is(err, authn.ErrForbidden) {
+					return authn.ErrForbidden
 				}
-				return dia.ErrUnauthorized
+				return authn.ErrUnauthorized
 			}
 			// Validate and detach scope using the same owner as composite execution.
 			scope, err = view.ExecuteComposite(r.Context(), scope, struct{}{}, nil, func(_ context.Context, _ struct{}, s view.Scope, _ *view.Components) (view.Scope, error) {
@@ -144,7 +144,7 @@ func (g ViewGateway) Handler() (http.Handler, error) {
 			}
 			err = fn(w, r, scope)
 			if errors.Is(err, eventstore.ErrNotFound) {
-				return write(w, 404, map[string]string{"error": "not found"})
+				return Write(w, 404, map[string]string{"error": "not found"})
 			}
 			return err
 		})
@@ -158,7 +158,7 @@ func (g ViewGateway) Handler() (http.Handler, error) {
 	}
 	mux.HandleFunc("GET /view-bootstrap/{name}", auth("bootstrap", func(w http.ResponseWriter, r *http.Request, scope view.Scope) error {
 		if r.URL.RawQuery != "" {
-			return dia.ErrInvalid
+			return authn.ErrInvalid
 		}
 		hook := g.Bootstrap[r.PathValue("name")]
 		if hook == nil {
@@ -178,11 +178,11 @@ func (g ViewGateway) Handler() (http.Handler, error) {
 		if err != nil {
 			return err
 		}
-		return write(w, 200, p)
+		return Write(w, 200, p)
 	}))
 	mux.HandleFunc("GET /view-stores/{name}/{id}", auth("read", func(w http.ResponseWriter, r *http.Request, scope view.Scope) error {
 		if r.URL.RawQuery != "" {
-			return dia.ErrInvalid
+			return authn.ErrInvalid
 		}
 		s, err := store(r, scope)
 		if err != nil {
@@ -192,7 +192,7 @@ func (g ViewGateway) Handler() (http.Handler, error) {
 		if err != nil {
 			return err
 		}
-		return write(w, 200, p)
+		return Write(w, 200, p)
 	}))
 	mux.HandleFunc("GET /view-stores/{name}", auth("list", func(w http.ResponseWriter, r *http.Request, scope view.Scope) error {
 		raw, err := viewQuery(r, "query", "download")
@@ -202,11 +202,11 @@ func (g ViewGateway) Handler() (http.Handler, error) {
 		var q view.Query
 		if len(raw) != 0 {
 			if err := eventstore.Decode(raw, &q); err != nil {
-				return dia.ErrInvalid
+				return authn.ErrInvalid
 			}
 		}
 		if q.Offset < 0 || q.Limit < 0 || q.Limit > view.MaxLimit {
-			return dia.ErrInvalid
+			return authn.ErrInvalid
 		}
 		s, err := store(r, scope)
 		if err != nil {
@@ -220,16 +220,16 @@ func (g ViewGateway) Handler() (http.Handler, error) {
 	}))
 	mux.HandleFunc("POST /view-stores/{name}/batch", auth("batch", func(w http.ResponseWriter, r *http.Request, scope view.Scope) error {
 		if r.URL.RawQuery != "" {
-			return dia.ErrInvalid
+			return authn.ErrInvalid
 		}
 		var in struct {
 			Mutations []view.Mutation `json:"mutations"`
 		}
-		if err := decode(w, r, &in); err != nil {
+		if err := Decode(w, r, &in); err != nil {
 			return err
 		}
 		if len(in.Mutations) == 0 || len(in.Mutations) > view.MaxLimit {
-			return dia.ErrInvalid
+			return authn.ErrInvalid
 		}
 		s, err := store(r, scope)
 		if err != nil {
@@ -239,7 +239,7 @@ func (g ViewGateway) Handler() (http.Handler, error) {
 		if err != nil {
 			return err
 		}
-		return write(w, 200, out)
+		return Write(w, 200, out)
 	}))
 	mux.HandleFunc("GET /view-composites/{name}", auth("composite", func(w http.ResponseWriter, r *http.Request, scope view.Scope) error {
 		raw, err := viewQuery(r, "query")
@@ -258,7 +258,7 @@ func (g ViewGateway) Handler() (http.Handler, error) {
 		if err != nil {
 			return err
 		}
-		return write(w, 200, out)
+		return Write(w, 200, out)
 	}))
 	mux.HandleFunc("GET /view-composites/{name}/stream", auth("stream", func(w http.ResponseWriter, r *http.Request, scope view.Scope) error {
 		raw, err := viewQuery(r, "query")
@@ -322,7 +322,7 @@ func (g ViewGateway) Handler() (http.Handler, error) {
 		if channel == "" {
 			return errors.New("empty view channel")
 		}
-		return write(w, 200, channel)
+		return Write(w, 200, channel)
 	}))
 	return mux, nil
 }
@@ -331,11 +331,11 @@ func (g ViewGateway) Handler() (http.Handler, error) {
 // bootstrap query fields are interpreted as authority.
 func viewQuery(r *http.Request, field string, extras ...string) (json.RawMessage, error) {
 	if len(r.URL.RawQuery) > 64<<10 {
-		return nil, dia.ErrInvalid
+		return nil, authn.ErrInvalid
 	}
 	values, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
-		return nil, dia.ErrInvalid
+		return nil, authn.ErrInvalid
 	}
 	for k, v := range values {
 		allowed := k == field
@@ -343,14 +343,14 @@ func viewQuery(r *http.Request, field string, extras ...string) (json.RawMessage
 			allowed = allowed || k == extra
 		}
 		if !allowed || len(v) != 1 {
-			return nil, dia.ErrInvalid
+			return nil, authn.ErrInvalid
 		}
 	}
 	raw := json.RawMessage(values.Get(field))
 	if field == "query" && len(raw) != 0 {
 		canonical, err := eventstore.Canonical(raw)
 		if err != nil {
-			return nil, dia.ErrInvalid
+			return nil, authn.ErrInvalid
 		}
 		return canonical, nil
 	}
@@ -362,11 +362,11 @@ func (g ViewGateway) writeViewPage(w http.ResponseWriter, r *http.Request, scope
 	name := r.PathValue("name")
 	if download := r.URL.Query().Get("download"); download != "" {
 		if download != "csv" {
-			return dia.ErrInvalid
+			return authn.ErrInvalid
 		}
 		config, ok := g.CSV[name]
 		if !ok {
-			return dia.ErrUnavailable
+			return authn.ErrUnavailable
 		}
 		docs := make([]view.Document, len(page.Items))
 		for i, p := range page.Items {
@@ -421,7 +421,7 @@ func (g ViewGateway) writeViewPage(w http.ResponseWriter, r *http.Request, scope
 		}
 		page.Updates = link
 	}
-	return write(w, 200, page)
+	return Write(w, 200, page)
 }
 
 // ViewClient reuses rpc.Client's deadlines, bounded bodies and no-retry policy.
@@ -430,7 +430,7 @@ type ViewClient struct{ RPC *rpc.Client }
 
 func viewPath(prefix, name string) (string, error) {
 	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\%\x00\r\n") {
-		return "", dia.ErrInvalid
+		return "", authn.ErrInvalid
 	}
 	return prefix + url.PathEscape(name), nil
 }

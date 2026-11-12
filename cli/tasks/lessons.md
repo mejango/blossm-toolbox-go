@@ -35,3 +35,11 @@ static process configuration and per-message defaults together. CLI validation
 and response checks must reuse owning RunID/ProjectionClient APIs. Preserve one
 ID across pages and uncertain retries, and reject obsolete settings instead of
 silently applying them. Regression: cli/replay_test.go.
+
+## 2026-11-12: Generic tooling must not own application policy
+
+Source relocation alone leaves hidden coupling when CLI config requires application
+secrets, names applications as runtime modes or builds their command directories.
+Validate infrastructure and explicit executable contracts in Toolbox. Keep peer
+security checks generic; move application namespace/business-secret checks with
+consumer tests. Prove a separate tiny app builds without application sources.

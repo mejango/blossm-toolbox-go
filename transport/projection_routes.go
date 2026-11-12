@@ -9,11 +9,11 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/mejango/blossm-toolbox-go/dia"
-	"github.com/mejango/blossm-toolbox-go/eventstore"
-	"github.com/mejango/blossm-toolbox-go/projection"
+	"github.com/mejango/blossm-toolbox-go/procedures/projection"
 	"github.com/mejango/blossm-toolbox-go/rpc"
-	"github.com/mejango/blossm-toolbox-go/view"
+	"github.com/mejango/blossm-toolbox-go/security/authn"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
+	"github.com/mejango/blossm-toolbox-go/stores/view"
 )
 
 // ProjectionOperation contains untrusted request selectors, not granted authority.
@@ -70,13 +70,13 @@ func (p ProjectionRoutes) Handler() (http.Handler, error) {
 		return nil, errors.New("projection authenticator/resolver required")
 	}
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /projections/{name}/play", wrap(func(w http.ResponseWriter, r *http.Request) error {
+	mux.HandleFunc("POST /projections/{name}/play", Wrap(func(w http.ResponseWriter, r *http.Request) error {
 		var in ProjectionPlayInput
-		if err := decode(w, r, &in); err != nil {
+		if err := Decode(w, r, &in); err != nil {
 			return err
 		}
 		if strings.TrimSpace(in.RootID) == "" {
-			return dia.ErrInvalid
+			return authn.ErrInvalid
 		}
 		binding, err := p.Resolve(r, ProjectionOperation{Name: r.PathValue("name"), RootID: in.RootID})
 		if err != nil {
@@ -98,15 +98,15 @@ func (p ProjectionRoutes) Handler() (http.Handler, error) {
 		if err != nil {
 			status, out.Error = projectionStatus(err)
 		}
-		return write(w, status, out)
+		return Write(w, status, out)
 	}))
-	mux.HandleFunc("POST /projections/{name}/replay", wrap(func(w http.ResponseWriter, r *http.Request) error {
+	mux.HandleFunc("POST /projections/{name}/replay", Wrap(func(w http.ResponseWriter, r *http.Request) error {
 		var in ProjectionReplayInput
-		if err := decode(w, r, &in); err != nil {
+		if err := Decode(w, r, &in); err != nil {
 			return err
 		}
 		if in.RunID.Validate() != nil || in.Limit < 1 || in.Limit > projection.MaxReplayBatch {
-			return dia.ErrInvalid
+			return authn.ErrInvalid
 		}
 		binding, err := p.Resolve(r, ProjectionOperation{Name: r.PathValue("name"), Replay: true})
 		if err != nil {
@@ -122,7 +122,7 @@ func (p ProjectionRoutes) Handler() (http.Handler, error) {
 		if in.After != "" {
 			var root eventstore.Root
 			if eventstore.Decode([]byte(in.After), &root) != nil || root.Network != binding.Source.Network || root.Service != binding.Source.Service || root.Domain != binding.Source.Domain || strings.TrimSpace(root.ID) == "" {
-				return dia.ErrInvalid
+				return authn.ErrInvalid
 			}
 		}
 		result, err := binding.Scheduler.Replay(r.Context(), binding.Source, in.RunID, in.After, in.Limit)
@@ -131,7 +131,7 @@ func (p ProjectionRoutes) Handler() (http.Handler, error) {
 		if err != nil {
 			status, out.Error = projectionStatus(err)
 		}
-		return write(w, status, out)
+		return Write(w, status, out)
 	}))
 	return mux, nil
 }

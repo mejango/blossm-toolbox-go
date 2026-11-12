@@ -19,8 +19,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	cloudaws "github.com/mejango/blossm-toolbox-go/cloud/aws"
-	"github.com/mejango/blossm-toolbox-go/command"
-	"github.com/mejango/blossm-toolbox-go/eventstore"
+	"github.com/mejango/blossm-toolbox-go/procedures/command"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
 )
 
 // Journal fixture implements only the transaction primitives exercised here.

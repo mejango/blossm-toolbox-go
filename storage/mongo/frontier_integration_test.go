@@ -6,8 +6,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/mejango/blossm-toolbox-go/eventstore"
 	"github.com/mejango/blossm-toolbox-go/storage/internal/frontiertest"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
 )
 
 func TestNativeFairFrontier(t *testing.T) {

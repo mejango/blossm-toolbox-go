@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/mejango/blossm-toolbox-go/dia"
 	"github.com/mejango/blossm-toolbox-go/rpc"
+	"github.com/mejango/blossm-toolbox-go/security/authn"
 )
 
 // FactProxy forwards only to a composition-selected RPC target/path. Credentials
@@ -26,7 +26,7 @@ func (p FactProxy) Handler() (http.Handler, error) {
 	if p.Authorize == nil || p.RPC == nil || p.Path == "" || p.Upstream == nil {
 		return nil, errors.New("fact proxy requires authorization, fixed RPC target/path and upstream credentials")
 	}
-	return wrap(func(w http.ResponseWriter, r *http.Request) error {
+	return Wrap(func(w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "GET" {
 			w.WriteHeader(405)
 			return nil
@@ -36,11 +36,11 @@ func (p FactProxy) Handler() (http.Handler, error) {
 			return err
 		}
 		if len(r.URL.RawQuery) > 64<<10 {
-			return dia.ErrInvalid
+			return authn.ErrInvalid
 		}
 		query, err := url.ParseQuery(r.URL.RawQuery)
 		if err != nil {
-			return dia.ErrInvalid
+			return authn.ErrInvalid
 		}
 		headers, err := p.Upstream(r.Context(), identity)
 		if err != nil {
@@ -54,7 +54,7 @@ func (p FactProxy) Handler() (http.Handler, error) {
 			if errors.As(err, &remote) {
 				switch remote.StatusCode {
 				case 400, 401, 403, 404, 409, 429:
-					return write(w, remote.StatusCode, map[string]string{"error": "upstream request rejected"})
+					return Write(w, remote.StatusCode, map[string]string{"error": "upstream request rejected"})
 				}
 			}
 			return err

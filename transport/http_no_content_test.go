@@ -17,8 +17,8 @@ func TestWriteNoContentRealHTTP(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var serverLog bytes.Buffer
 			result := make(chan error, 1)
-			server := httptest.NewUnstartedServer(wrap(func(w http.ResponseWriter, r *http.Request) error {
-				err := write(w, http.StatusNoContent, tc.body)
+			server := httptest.NewUnstartedServer(Wrap(func(w http.ResponseWriter, r *http.Request) error {
+				err := Write(w, http.StatusNoContent, tc.body)
 				result <- err
 				return err
 			}))

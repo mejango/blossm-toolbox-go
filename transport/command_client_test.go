@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mejango/blossm-toolbox-go/command"
-	"github.com/mejango/blossm-toolbox-go/eventstore"
-	"github.com/mejango/blossm-toolbox-go/job"
+	"github.com/mejango/blossm-toolbox-go/procedures/command"
+	"github.com/mejango/blossm-toolbox-go/procedures/job"
 	"github.com/mejango/blossm-toolbox-go/rpc"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
 )
 
 func TestNestedCommandTwoServices(t *testing.T) {

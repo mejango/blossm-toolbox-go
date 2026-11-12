@@ -1,12 +1,13 @@
 GO ?= go
 GOVULNCHECK_VERSION := v1.9.0
-IMAGE ?= blossm-dia:local
+IMAGE ?= blossm-toolbox:local
 CONTAINER_NETWORK ?= blossm-go-native_default
 CONTAINER_POSTGRES_URL ?= postgres://postgres:postgres@postgres:5432/blossm?sslmode=disable
 export GOWORK := off
 
 .PHONY: fmt-check vet test race native native-redis modules build config-check container container-smoke vuln check
 fmt-check:
+	python3 tools/check_boundaries.py
 	@output=$$(gofmt -l .) || exit $$?; test -z "$$output" || { printf '%s\n' "$$output"; echo 'Go files require gofmt'; exit 1; }
 vet:
 	$(GO) vet -mod=readonly ./...
@@ -25,7 +26,7 @@ modules:
 	$(GO) mod verify
 	$(GO) mod tidy -diff
 build:
-	$(GO) run -mod=readonly ./cmd/blossm build
+	$(GO) build -mod=readonly -trimpath -o bin/blossm ./cmd/blossm
 config-check:
 	$(GO) test -mod=readonly ./cli -run 'TestArtifacts|TestStrictConfiguration|TestOfflineCLI|TestCheckedExamples|TestAWSPublicationSizing' -count=1
 	$(GO) run -mod=readonly ./cmd/blossm validate --config deploy/examples/gcp-postgres.json
@@ -35,7 +36,7 @@ container:
 	docker run --rm --platform linux/amd64 --entrypoint /blossm $(IMAGE) version
 	$(MAKE) container-smoke
 container-smoke:
-	CONTAINER_IMAGE=$(IMAGE) CONTAINER_NETWORK=$(CONTAINER_NETWORK) CONTAINER_POSTGRES_URL='$(CONTAINER_POSTGRES_URL)' $(GO) test -mod=readonly -tags=containerintegration -count=1 -timeout=3m ./integration
+	CONTAINER_IMAGE=$(IMAGE) $(GO) test -mod=readonly -tags=containerintegration -count=1 -timeout=3m ./integration
 vuln:
 	$(GO) run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION) ./...
 check: fmt-check vet test race native native-redis modules config-check build vuln container

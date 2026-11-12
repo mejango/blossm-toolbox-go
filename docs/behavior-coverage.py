@@ -8,8 +8,65 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKSPACE = Path(os.environ.get("BLOSSM_REFERENCE_WORKSPACE", str(ROOT.parent)))
-REF = WORKSPACE / 'tasks/worktrees/go-reference'
+DIA_SOURCE = Path(os.environ.get("DIA_SOURCE", str(ROOT.parent / "dia-go"))).resolve()
+# Verification-only roots. Neither Go module depends on a sibling checkout.
+PREFIX_MOVES = {
+    'command': 'procedures/command', 'fact': 'procedures/fact',
+    'job': 'procedures/job', 'projection': 'procedures/projection',
+    'eventstore': 'stores/event', 'view': 'stores/view', 'evm': 'onchain/evm',
+    'cryptography': 'security/cryptography', 'audit': 'security/audit',
+    'runtimeauth': 'runtime/auth', 'runtimeenv': 'runtime/env',
+    'runtimepub': 'runtime/publication', 'runtimequeue': 'runtime/queue',
+    'dia': 'dia-go:services/identity', 'wallet': 'dia-go:services/wallet',
+    'diaruntime': 'dia-go:runtime', 'serviceapp': 'dia-go:examples/document',
+    'cmd/framework': 'dia-go:cmd/document', 'cmd/dia': 'dia-go:cmd/dia',
+}
+# These owners split individual files/tests; a directory rename is insufficient.
+FILE_MOVES = {
+    'dia/auth.go': ['dia-go:services/identity/auth.go', 'security/token/jwt.go'],
+    'dia/auth_test.go': ['dia-go:services/identity/auth_test.go', 'security/token/jwt_test.go'],
+    'dia/signing.go': ['dia-go:services/identity/signing.go', 'security/token/signing.go'],
+    'dia/signing_test.go': ['dia-go:services/identity/signing_test.go', 'security/token/signing_test.go'],
+    'transport/auth.go': ['transport/auth.go', 'dia-go:httpapi/auth.go'],
+    'transport/auth_test.go': ['transport/auth_test.go', 'dia-go:httpapi/auth_test.go'],
+    'transport/http.go': ['transport/http.go', 'dia-go:httpapi/http.go'],
+    'transport/auth_delegated.go': ['dia-go:httpapi/auth_delegated.go'],
+    'transport/auth_delegated_test.go': ['dia-go:httpapi/auth_delegated_test.go'],
+    'transport/routes.go': ['dia-go:httpapi/routes.go'],
+    'integration/framework_flow_test.go': ['dia-go:integration/framework_flow_test.go'],
+    'integration/session_test.go': ['dia-go:integration/session_test.go'],
+    'integration/container_test.go': ['integration/container_cli_test.go', 'dia-go:integration/container_test.go'],
+    'cli/internal_token_test.go': ['cli/internal_token_test.go', 'dia-go:examples/document/cli_token_test.go'],
+}
+
+TEST_REPLACEMENTS = {
+    'cli/runtime_test.go:TestFrameworkRuntimePlans': ('TestApplicationRuntimePlans', 'CLI now emits application-owned settings without inventing Dia runtime requirements.'),
+    'cli/runtime_test.go:TestFrameworkCheckedExamples': ('TestDeliveryCheckedExamples', 'Generic checked delivery examples replace the Dia-backed framework executable configuration; Dia owns cmd/document configuration tests.'),
+    'cli/runtime_test.go:TestFrameworkPeerAuthorityConfiguration': ('TestPeerAuthorityConfiguration', 'Generic peer configuration remains validated without owning Dia identity policy.'),
+    'cli/runtime_test.go:TestFrameworkRejectsUnverifiedCloudRunIAMDelivery': ('TestRejectsUnverifiedCloudRunIAMDelivery', 'Same explicit IAM/token-forwarding rejection lives in the application-independent CLI.'),
+}
+
+def current_paths(file):
+    if file in FILE_MOVES:
+        return FILE_MOVES[file]
+    for old, new in sorted(PREFIX_MOVES.items(), key=lambda pair: -len(pair[0])):
+        if file == old or file.startswith(old + '/'):
+            return [new + file[len(old):]]
+    return [file]
+
+def source_path(file):
+    return DIA_SOURCE / file.removeprefix('dia-go:') if file.startswith('dia-go:') else ROOT / file
+
+def source_link(file, repositories, line=None):
+    if file.startswith('dia-go:'):
+        repo = repositories['dia-go']
+        relative = file.removeprefix('dia-go:')
+        kind = 'blob' if Path(relative).suffix else 'tree'
+        target = repo['url'] + '/' + kind + '/' + (repo.get('revision') or 'main') + '/' + relative
+    else:
+        target = '../' + file
+    return target + (f'#L{line}' if line else '')
+
 FAMILIES = []
 
 def F(id, packages, contract, go, disposition='assertions-mapped', remaining=''):
@@ -22,8 +79,8 @@ F('authentication-and-live-revocation', 'authenticate authentication-middleware 
 F('token-families-and-gateway-credentials', 'basic-token connection-token network-token operation-token key-claims node-external-token tokens-from-req', 'Basic/key/contextual service credentials and token extraction must establish the intended subject/audience/operation, with no caller-forged claims.', 'dia/system_test.go:TestSystemConnectionBindingAndKeyRotation;transport/auth_test.go:TestGatewayCredentialModesAndIsolation|TestGatewayDiaSessionAndConnectionAuthority|TestGatewayPinnedServiceJWT;runtimeauth/signing_test.go:TestRuntimeSigningSelection|TestRuntimeSigningRejectsInvalidConfiguration;transport/auth_delegated_test.go:TestDelegatedCommandRealCredentialComposition|TestDelegatedCommandRejectsTamperedAuthority|TestDelegatedCommandExpiryCeiling;integration/framework_flow_test.go:TestGenericFrameworkNativeFlow', 'assertions-mapped', 'Actual signed parent Main -> CommandClient -> child fixtures cover target/peer identity, context and ordered transaction binding, revocation and expiry ceiling. Gateway owner fresh full transport race PASS2.138s and vet PASS on Go1.27.4. Final frozen-source local gates and bounded review are closed. Current native assertions pin copy sourceVersion/history: editing the source before retry preserves the original child duplicate; delegated command credentials reject fact/job/view routes. Final frozen-source local gates and bounded review are closed.')
 F('jwt-expiry-signature-authority', 'jwt', 'Reject wrong signature/algorithm/audience/issuer and expired/not-yet-valid credentials; configured keys are authority.', 'dia/auth_test.go:TestJWT', 'deliberate-contract-change', 'Go ES256 epoch-second JWT replaces JS ISO-date/algorithm-flexible wire format; cloud signing composition separately tracked.')
 F('chainpoint-handle-binding', 'chainpoint', 'Hash submission and proof retrieval preserve matching handles, reject foreign gateway replies and propagate errors.', 'integrations/chainpoint/client_test.go:TestSubmitAndRetrieve', 'deliberate-contract-change', 'Automatic public-IP discovery explicitly retired; trusted configured HTTPS gateway only. No live network discovery or cryptographic proof-verification claim.')
-F('cli-init-scaffold-root', 'cli cli-root-dir init-cli-template normalize-cli http-dependency-cli', 'Init/scaffold refuse overwrite, use one module and delegate to actual owners; generated entry point must run the generic reference service.', 'cli/workflows_test.go:TestScaffoldsCompileInOneModule;cli/cli_test.go:TestOfflineCLI', 'assertions-mapped', 'Gateway serviceapp.New scaffold, all generated kinds and actual three-binary CLI build verified. CLI race PASS7.110s and vet PASS on Go1.27.4; parent process/container and final review gates separate.')
-F('cli-deploy-and-resource-actions', 'deploy-cli-template execute-cli-template merge-cli-template', 'Prepared defaults are fully offline; explicit actions use argv, exact receipts/targets and preserve errors. Secrets stay out of argv/plans.', 'cli/workflows_test.go:TestResourceWorkflowsPrepareAndExecute|TestProviderFailureStopsExecution|TestDeployExecutionUsesRegisteredRevision|TestDeployMalformedReceiptAndFailure|TestDefaultDeployNeverRunsOrReadsSecrets;cli/publication_test.go:TestAWSPublicationSizing;cli/runtime_test.go:TestFrameworkRuntimePlans|TestSigningConfiguration|TestFrameworkCheckedExamples|TestDeliveryConfigRejectsUnsafePlans;cli/runtime_test.go:TestFrameworkPeerAuthorityConfiguration;cli/replay_test.go:TestReplayRequiresLogicalRunAndValidatedAcknowledgment|TestRejectStaticReplayConfiguration;cli/runtime_test.go:TestCloudRunExplicitInvocationMode;cli/runtime_test.go:TestFrameworkRejectsUnverifiedCloudRunIAMDelivery|TestPlansRequireOperatorRedrivePolicy;cli/replay_test.go:TestOperationURLLoopbackBoundaryBeforeCredentials', 'assertions-mapped', 'Framework GCP requires application invocation; IAM plus intact Tasks token validation is conservatively unsupported, not proven universally broken. Dia IAM requires authenticating edge. Plain HTTP operations only on localhost/literal loopback; remote HTTPS required. Operator retry/redrive prerequisite explicit, no DLQ provisioning. Full CLI race PASS6.337s and vet PASS; no live changes.')
+F('cli-init-scaffold-root', 'cli cli-root-dir init-cli-template normalize-cli http-dependency-cli', 'Init/scaffold refuse overwrite, use one module and delegate to actual owners; generated entry points consume public framework owners and the selected independent application builds without Dia runtime assumptions.', 'cli/workflows_test.go:TestScaffoldsCompileInOneModule;cli/cli_test.go:TestOfflineCLI;cli/application_test.go:TestIndependentApplicationBuild|TestApplicationPaths', 'assertions-mapped', 'Gateway serviceapp.New scaffold, all generated kinds and actual three-binary CLI build verified. CLI race PASS7.110s and vet PASS on Go1.27.4; parent process/container and final review gates separate.')
+F('cli-deploy-and-resource-actions', 'deploy-cli-template execute-cli-template merge-cli-template', 'Prepared defaults are fully offline; explicit actions use argv, exact receipts/targets and preserve errors. Secrets stay out of argv/plans.', 'cli/workflows_test.go:TestResourceWorkflowsPrepareAndExecute|TestProviderFailureStopsExecution|TestDeployExecutionUsesRegisteredRevision|TestDeployMalformedReceiptAndFailure|TestDefaultDeployNeverRunsOrReadsSecrets;cli/publication_test.go:TestAWSPublicationSizing;cli/runtime_test.go:TestFrameworkRuntimePlans|TestSigningConfiguration|TestFrameworkCheckedExamples|TestDeliveryConfigRejectsUnsafePlans;cli/application_test.go:TestOptionalInfrastructureAndEnvironmentOwnership|TestPeerURLAndIdentitySecurity;cli/runtime_test.go:TestFrameworkPeerAuthorityConfiguration;cli/replay_test.go:TestReplayRequiresLogicalRunAndValidatedAcknowledgment|TestRejectStaticReplayConfiguration;cli/runtime_test.go:TestCloudRunExplicitInvocationMode;cli/runtime_test.go:TestFrameworkRejectsUnverifiedCloudRunIAMDelivery|TestPlansRequireOperatorRedrivePolicy;cli/replay_test.go:TestOperationURLLoopbackBoundaryBeforeCredentials', 'assertions-mapped', 'Framework GCP requires application invocation; IAM plus intact Tasks token validation is conservatively unsupported, not proven universally broken. Dia IAM requires authenticating edge. Plain HTTP operations only on localhost/literal loopback; remote HTTPS required. Operator retry/redrive prerequisite explicit, no DLQ provisioning. Full CLI race PASS6.337s and vet PASS; no live changes.')
 F('cli-test-build-failures', 'test-cli-template', 'Real child test/build failures and missing native settings propagate, with no fabricated successful test runner.', 'cli/cli_test.go:TestRealGoFailurePropagation|TestSubprocessFailureAndOfflineEnvironment|TestNativePrerequisitesFailClosed')
 F('developer-identity', 'get-token', 'Offline preparation never discovers credentials; explicit provider-token acquisition and internal-token signing use configured authority and propagate failures. Internal service JWT has configured subject/network audience and short bounded lifetime.', 'cli/token_test.go:TestDeveloperToken;cli/internal_token_test.go:TestInternalTokenOfflineAndBounds|TestInternalTokenDrivesServiceAppReplay|TestInternalTokenKMSSelectionAndFailures', 'deliberate-contract-change', 'Internal-token uses runtimeauth.Open and JWT.Sign. Actual CLI local mint drives serviceapp replay over loopback HTTP with injected root store/producer; wrong subject/network return401. Local/synthetic KMS tests only; no native DB or live signer evidence. Full CLI race PASS6.337s and vet PASS Go1.27.4; final frozen-source local gates and bounded review closed.')
 F('command-validation-trace-nested', 'command command-post validate-command', 'Validate before running user code; root/context/claims/transaction trace and nested command identity remain consistent across services.', 'command/command_test.go:TestValidationOrderAndTrace|TestCommandIDCannotBeRetargeted|TestConditionalConflictDoesNotInvokeCallback;transport/command_client_test.go:TestNestedCommandTwoServices|TestCommandClientFailureAndAuthorityBoundary|TestCommandClientDeadlineNoRetry;transport/auth_delegated_test.go:TestDelegatedCommandRealCredentialComposition|TestDelegatedCommandRejectsTamperedAuthority|TestDelegatedCommandExpiryCeiling;integration/framework_flow_test.go:TestGenericFrameworkNativeFlow', 'assertions-mapped', 'Actual signed parent Main -> CommandClient -> child fixtures cover target/peer identity, context and ordered transaction binding, revocation and expiry ceiling. Gateway owner fresh full transport race PASS2.138s and vet PASS on Go1.27.4. Final frozen-source local gates and bounded review are closed. Current native assertions pin copy sourceVersion/history: editing the source before retry preserves the original child duplicate; delegated command credentials reject fact/job/view routes. Final frozen-source local gates and bounded review are closed.')
@@ -84,32 +141,16 @@ def digest(data):
     return hashlib.sha256(data.encode()).hexdigest()
 
 
-def js_cases(path, label):
-    text = path.read_text()
-    # Literal call-sites, not expanded Mocha cases. Dynamic loops remain explicit.
-    matches = list(re.finditer(r'(?m)^[ \t]*(?:it|test)(?:\.(skip|only))?\s*\(\s*([\'"`])((?:\\.|(?!\2).)*?)\2', text))
-    cases = []
-    for index, match in enumerate(matches):
-        end = matches[index+1].start() if index+1 < len(matches) else len(text)
-        block = text[match.start():end]
-        line = text.count('\n', 0, match.start())+1
-        assertions = []
-        for offset, value in enumerate(block.splitlines()):
-            if re.search(r'\bassert(?:\.|\()|\bexpect\(|\.should\.|sinon\.assert', value) and not value.lstrip().startswith('//'):
-                assertions.append(dict(line=line+offset, code=value.strip()))
-        cases.append(dict(id=f'{label}:{line}', file=label, line=line, title=match[3],
-                          generated_title='${' in match[3], declared_mode=match[1] or 'ordinary', assertions=assertions))
-    return dict(file=label, sha256=digest(text), cases=cases,
-                note='Literal call-sites only; parameterized loops and imported helpers are not expanded. Assertion lines are anchors, not automatic equivalence judgments.')
-
-
 def go_tests(selector):
-    file, expression = selector.split(':', 1)
-    path = ROOT / file
+    file, expression = selector.rsplit(':', 1)
+    path = source_path(file)
     if not path.is_file():
         return [], dict(selector=selector, reason='file not present at snapshot')
     text = path.read_text()
-    funcs = list(re.finditer(r'(?m)^func\s+(\w+)\s*(?:\[[^\n]*\])?\(', text))
+    # Ignore declarations/assertions inside generated Go source literals and comments.
+    tokens = r'''(?s)//[^\n]*|/\*.*?\*/|`[^`]*`|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*' '''.rstrip()
+    masked = re.sub(tokens, lambda m: re.sub(r'[^\n]', ' ', m[0]), text)
+    funcs = list(re.finditer(r'(?m)^func\s+(\w+)\s*(?:\[[^\n]*\])?\(', masked))
     selected = []
     for index, match in enumerate(funcs):
         if not re.search(expression, match[1]):
@@ -119,100 +160,124 @@ def go_tests(selector):
         line = text.count('\n', 0, match.start())+1
         lines = block.splitlines()
         assertions = []
+        masked_lines = masked[match.start():end].splitlines()
         for offset, value in enumerate(lines):
-            if re.search(r'\bt\.(?:Fatalf?|Errorf?)\(', value):
+            if re.search(r'\bt\.(?:Fatalf?|Errorf?)\(', masked_lines[offset]):
                 assertions.append(dict(line=line+offset, code=value.strip(),
                                        predicate_context='\n'.join(lines[max(0,offset-3):offset+2]).strip()))
         selected.append(dict(file=file, test=match[1], line=line, body_sha256=digest(block),
-                             assertions=assertions, execution='current source inspected; post-remediation run/review not yet claimed'))
+                             assertions=assertions, execution='current source inspected; split execution gates tracked separately'))
     return selected, None if selected else dict(selector=selector, reason='test/function not present at snapshot')
 
 
 def build():
     inventory = json.loads((ROOT/'docs/capabilities.json').read_text())
+    saved = json.loads((ROOT/'docs/behavior-coverage.json').read_text())
+    if not DIA_SOURCE.is_dir():
+        raise SystemExit('Dia source unavailable: set DIA_SOURCE for two-repository ledger verification (not required to build Toolbox).')
     packages = {p['name']:p for p in inventory['packages']}
-    assigned = {}
-    families = []
-    js_catalog = {}
+    if len(packages) != 154 or set(packages) != set(saved['package_family_assignment']):
+        raise SystemExit('Retained package identity set changed; explicit inventory review required.')
+    for package in packages.values():
+        for kind in ('source_files', 'test_files'):
+            for file in package['implementation'][kind]:
+                if not source_path(file).is_file():
+                    raise SystemExit('Missing current capability owner: ' + file)
+    previous = {f['id']:f for f in saved['families']}
+    if {f['id'] for f in FAMILIES} != set(previous):
+        raise SystemExit('Behavior family identity set changed; explicit inventory review required.')
+    # Frozen historical inputs: refreshing Go anchors must never rediscover a
+    # smaller JS catalog because an unrelated checkout is absent.
+    js_catalog = saved['reference_test_catalog']
+    integrity = inventory['coverage_reference_integrity']
+    def preserved(key, value):
+        actual = hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+        if actual != integrity[key]:
+            raise SystemExit('Frozen reference integrity changed: ' + key)
+    preserved('reference_test_catalog_sha256', js_catalog)
+    preserved('family_reference_ids_sha256', {f['id']: f['js_case_ids'] for f in saved['families']})
+    preserved('package_family_assignment_sha256', saved['package_family_assignment'])
+    historical_set = {f['id']: f.get('historical_go_assertions', [
+        {k: a[k] for k in ('file', 'test', 'body_sha256')} for a in f['go_assertions']]) for f in saved['families']}
+    preserved('historical_go_assertions_sha256', historical_set)
+    assigned, families = {}, []
     for specification in FAMILIES:
         family = dict(specification)
-        reference = set()
+        old = previous[family['id']]
         for name in family['packages']:
-            assert name in packages, name
-            assert name not in assigned, (name, assigned.get(name), family['id'])
+            assert name in packages and name not in assigned, name
             assigned[name] = family['id']
-            reference.update(packages[name]['reference_test_files'])
-        family['reference_test_files'] = sorted(reference)
-        family['go_assertions'] = []
-        family['unresolved_go_selectors'] = []
+        family['reference_test_files'] = old['reference_test_files']
+        family['go_assertions'], family['unresolved_go_selectors'] = [], []
         for selector in family.pop('go_selectors'):
-            tests, problem = go_tests(selector)
-            family['go_assertions'].extend(tests)
-            if problem: family['unresolved_go_selectors'].append(problem)
-        for file in reference:
-            if file not in js_catalog:
-                js_catalog[file] = js_cases(REF/file, file)
-        families.append(family)
-    assert set(assigned)==set(packages), ('unassigned retained package',sorted(set(packages)-set(assigned)))
-    # Keep all currently retained Dia test files; excluded JB/shop/payment sources are explicit.
-    dia_files = []
-    excluded_dia = []
-    for file in sorted((WORKSPACE/'dia').rglob('*.js')):
-        if '/test/' not in file.as_posix() or 'node_modules' in file.parts:
-            continue
-        rel = file.relative_to(WORKSPACE).as_posix()
-        if '/services/jb/' in rel or '/services/shop/' in rel:
-            excluded_dia.append(rel)
-            continue
-        if '/services/wallet/' in rel:
-            # Direct custodial wallet remains included. Legacy Relayr payment code does not.
-            if 'payment' in rel or 'relayr' in rel:
-                excluded_dia.append(rel)
-                continue
-            id = 'evm-providers-and-custody'
-        elif '/services/comms/' in rel: id='comms-provider-and-durability'
-        elif '/services/system/' in rel: id='dia-system-node-key-connection'
-        elif '/domains/principal/' in rel or '/domains/role/' in rel: id='dia-role-group-authority'
-        elif '/domains/account/' in rel or '/domains/challenge/' in rel: id='dia-account-challenge-identity'
-        elif '/facts/public_key/' in rel: id='jwt-expiry-signature-authority'
-        else: id='dia-session-scene-lifecycle'
-        next(f for f in families if f['id']==id)['reference_test_files'].append(rel)
-        js_catalog[rel]=js_cases(file,rel)
-        dia_files.append(rel)
-    # Family associations index JS cases alongside Go predicates for semantic review.
-    # They are not one-to-one equivalence proofs and do not cover every historical branch.
-    for family in families:
-        family['js_case_ids']=[c['id'] for f in family['reference_test_files'] for c in js_catalog[f]['cases']]
-        family['assertion_count']=sum(len(t['assertions']) for t in family['go_assertions'])
-        family['coverage_boundary']='The observable contract and cited JS/Go assertion sets are the review unit. Other JS setup/branches/defaults must not be inferred covered from family association. Unresolved selectors require follow-up; row notes record scope boundaries and checkpoint history. Current required completion is the top-level gate state.'
+            file, expression = selector.rsplit(':', 1)
+            for old_selector, (new_name, reason) in TEST_REPLACEMENTS.items():
+                old_file, old_name = old_selector.rsplit(':', 1)
+                if file == old_file:
+                    expression = expression.replace(old_name, new_name)
+            matches = []
+            for mapped in current_paths(file):
+                tests, _ = go_tests(mapped + ':' + expression)
+                matches.extend(tests)
+            family['go_assertions'].extend(matches)
+            if not matches:
+                family['unresolved_go_selectors'].append(dict(selector=selector, reason='No current owning source matched after relocation'))
+        historical = old.get('historical_go_assertions', [
+            {k: t[k] for k in ('file', 'test', 'body_sha256')} for t in old['go_assertions']])
+        family['historical_go_assertions'] = historical
+        current_names = {t['test'] for t in family['go_assertions']}
+        family['selector_replacements'] = []
+        for anchor in historical:
+            key = anchor['file'] + ':' + anchor['test']
+            replacement = TEST_REPLACEMENTS.get(key)
+            expected = replacement[0] if replacement else anchor['test']
+            if replacement:
+                family['selector_replacements'].append(dict(previous=key, current=anchor['file'] + ':' + expected, reason=replacement[1]))
+            if expected not in current_names:
+                family['unresolved_go_selectors'].append(dict(
+                    selector=anchor['file'] + ':' + anchor['test'],
+                    reason='Historical assertion requires explicit current replacement; never silently dropped'))
+        family['js_case_ids'] = old['js_case_ids']
+        family['assertion_count'] = sum(len(t['assertions']) for t in family['go_assertions'])
+        family['coverage_boundary'] = 'Current repository-qualified source anchors are inspected, not execution evidence. Historical notes and assertion hashes describe the pre-split snapshot. All original JS cases remain indexed; family associations do not prove one-to-one parity.'
         if not family['assertion_count'] and family['disposition'] not in ('missing-assertion','deliberate-contract-change'):
-            family['disposition']='missing-assertion'
-    return dict(schema_version=1, status=inventory['verification_stage']['overall'], reference_commit=inventory['reference_commit'],
-                baseline_evidence='docs/verification-baseline/verification-results.json (pre-remediation753 unit/race and927 native results; overlapping totals, not equivalence counts)'
-                ,current_checkpoint=inventory['verification_stage'].get('current_checkpoint', {}), review=inventory['independent_review'],
-                policy='All retained behavior families are inventoried; assertions-mapped means source anchors inspected, NOT full JS-test equivalence or fresh passing evidence. No live evidence.',
+            family['disposition'] = 'missing-assertion'
+        families.append(family)
+    assert assigned == saved['package_family_assignment'], 'Retained package assignments changed'
+    return dict(schema_version=2, status=inventory['verification_stage']['overall'],
+                reference_commit=inventory['reference_commit'],
+                historical_snapshot=inventory['historical_snapshot'],
+                source_repositories=inventory['source_repositories'],
+                baseline_evidence=saved['baseline_evidence'],
+                current_checkpoint=inventory['verification_stage'].get('current_checkpoint', {}),
+                review=inventory['independent_review'],
+                policy='All retained identities/reference cases are preserved. Repository-qualified assertion anchors are source evidence only; historical passes do not verify this split.',
                 required_completion=inventory['verification_stage']['remaining'],
                 package_family_assignment=assigned, families=families, reference_test_catalog=js_catalog,
-                additional_dia_reference_tests=dia_files, excluded_dia_reference_tests=excluded_dia,
-                counts=dict(packages=len(assigned),families=len(families),reference_files=len(js_catalog),literal_js_test_call_sites=sum(len(v['cases']) for v in js_catalog.values())))
+                additional_dia_reference_tests=saved['additional_dia_reference_tests'],
+                excluded_dia_reference_tests=saved['excluded_dia_reference_tests'],
+                counts=dict(packages=len(assigned), families=len(families), reference_files=len(js_catalog),
+                            literal_js_test_call_sites=sum(len(v['cases']) for v in js_catalog.values())))
 
 
 def markdown(ledger):
     lines=['# Retained behavior coverage','', '**Current verification status: '+ledger['status']+'.** '+ledger['required_completion'], '',
-           'This ledger maps observable JS contracts to actual Go test assertions. It is not a package-count or passing-suite equivalence claim. The latest bounded independent review and execution checkpoint are recorded above and in capabilities.json; the original broad completion statement was superseded during remediation.', '',
-           'The [machine matrix](behavior-coverage.json) includes every retained package assignment, all indexed JS test call-sites/assertion lines, selected Go test names/assertion predicates and explicit unresolved selectors. Set `BLOSSM_REFERENCE_WORKSPACE` to the preserved historical workspace, then run `python3 docs/behavior-coverage.py --check` from the module root to detect stale anchors. `--refresh` rebuilds source snapshots; it does not run tests or mark gaps resolved.', '',
+           'This ledger maps observable JS contracts to actual Go test assertions. It is not a package-count or passing-suite equivalence claim. Historical gate results and reviews apply to the pre-split snapshot only. Current split verification is tracked separately in capabilities.json.', '',
+           'The [machine matrix](behavior-coverage.json) includes every retained package assignment, all indexed JS test call-sites/assertion lines, selected Go test names/assertion predicates and explicit unresolved selectors. Run `DIA_SOURCE=/path/to/dia-go python3 docs/behavior-coverage.py --check` to verify both source trees (default: sibling `../dia-go`). This documentation check is not a Go build dependency. `--refresh` updates current Go anchors while preserving the frozen JS catalog and historical assertion identities; it does not run tests or mark gaps resolved. Unresolved relocations fail the check. Dia links use the recorded commit when pinned; review branches are used until the paired change is approved.', '',
            'The pinned Toolbox reference is `'+ledger['reference_commit']+'`. Dia test references use the preserved reference workspace Dia source with file hashes. JB/shop and Relayr payment test files are listed as exclusions; direct custodial-wallet tests remain included. Literal JS call-sites are not expanded parameterized case counts.', '',
            'Each row has a specific contract and Go predicate excerpts in JSON. `assertions-mapped` is source evidence only. `deliberate-contract-change` names a fresh internal contract, not permission to drop a retained behavior. `remediation-active` and `missing-assertion` remain incomplete. The current checkpoint above governs execution status. Row notes preserve contract boundaries and historical scoped reports; they do not override the current gate state.', '',
            '| Behavior family | Observable contract | Go assertion anchors | Disposition / contract boundaries and checkpoint notes |','| --- | --- | --- | --- |']
     for f in ledger['families']:
-        anchors=', '.join(f'[{t["test"]}](../{t["file"]}#L{t["line"]})' for t in f['go_assertions']) or 'No matching Go assertion yet'
+        anchors=', '.join(f'[{t["test"]}]({source_link(t["file"], ledger["source_repositories"], t["line"])})' for t in f['go_assertions']) or 'No matching Go assertion yet'
         gap=f['disposition']+(': '+f['remaining'] if f['remaining'] else '')
+        for change in f.get('selector_replacements', []):
+            gap += ' Explicit replacement: ' + change['previous'] + ' -> ' + change['current'] + '. ' + change['reason']
         if f['unresolved_go_selectors']:gap+=' Unresolved selectors: '+', '.join(p['selector'] for p in f['unresolved_go_selectors'])
         lines.append('| '+f['id']+' | '+f['contract'].replace('|','\\|')+' | '+anchors+' | '+gap.replace('|','\\|')+' |')
     lines+=['','## Checkability and limits','',
             f'The ledger assigns all{ledger["counts"]["packages"]} retained package names and inventories{ledger["counts"]["families"]} behavior families. These are bookkeeping counts, not test coverage percentages. A test file/function without an actual assertion is not promoted to semantic evidence. Shared native helper calls require inspection of the helper predicates too.', '',
-            'The machine reference catalog retains literal JS tests not individually paired to a unique Go assertion; no one-to-one coverage percentage is claimed. No exhaustive historical branch/default parity is inferred from the family association. Current parent gates and bounded independent reviews have their recorded scopes; archived baseline logs apply only to the former tree.', '',
-            'No cloud deployment, live payment/chain operation or production provider compatibility is established. Parent owns generic serviceapp/cmd/framework composition, exact owner API decisions and the final independent Claude review.']
+            'The machine reference catalog retains literal JS tests not individually paired to a unique Go assertion; no one-to-one coverage percentage is claimed. No exhaustive historical branch/default parity is inferred from the family association. All pre-split gates and bounded reviews have their recorded historical scopes. Current split gates require fresh evidence tied to both repository revisions.', '',
+            'No cloud deployment, live payment/chain operation or production provider compatibility is established. Dia owns examples/document and cmd/document; Toolbox owns generic framework components. Cross-repository links do not create a framework dependency on the application.']
     return '\n'.join(lines)+'\n'
 
 
@@ -231,7 +296,10 @@ def main():
         saved=json.loads(target.read_text())
         if ledger!=saved:raise SystemExit('Stale coverage anchors: inspect changed tests/decisions, then --refresh. No coverage status was automatically promoted.')
         if md.read_text()!=markdown(saved):raise SystemExit('Behavior Markdown and machine ledger differ.')
+    unresolved = sum(len(f['unresolved_go_selectors']) for f in ledger['families'])
     print(json.dumps(ledger['counts']))
+    if unresolved:
+        raise SystemExit(f'{unresolved} unresolved owning-source/test mappings; inspect ledger before claiming completeness.')
     print('Source assertions indexed; current verification status: '+ledger['status']+'. No one-to-one JS parity or live evidence claimed.')
 
 if __name__=='__main__': main()

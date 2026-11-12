@@ -42,7 +42,7 @@ func TestReplayRequiresLogicalRunAndValidatedAcknowledgment(t *testing.T) {
 	}
 }
 func TestRejectStaticReplayConfiguration(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "deploy", "examples", "gcp-framework-postgres.json"))
+	data, err := os.ReadFile(filepath.Join("..", "deploy", "examples", "gcp-delivery-postgres.json"))
 	if err != nil {
 		t.Fatal(err)
 	}

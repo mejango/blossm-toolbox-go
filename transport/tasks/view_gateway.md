@@ -36,7 +36,7 @@ registries. Authorize(request,operation,name) must verify both identity and the
 selected operation/name; batch permission must be distinct from read permission.
 It returns view.Scope, not request claims. Missing/foreign/deleted records are
 indistinguishable 404s. Callback auth errors are hidden (401, or 403 for
-`dia.ErrForbidden`). Body input is bounded by existing decode (1MiB); query is
+`authn.ErrForbidden`). Body input is bounded by existing decode (1MiB); query is
 bounded to 64KiB with repeated/unknown fields rejected. Standard wrap supplies
 the 30-second request deadline. Backend validation errors without typed sentinels
 remain safe generic 500 responses; transport does not classify error strings.

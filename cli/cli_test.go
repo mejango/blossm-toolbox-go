@@ -19,8 +19,8 @@ func TestStrictConfiguration(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, data := range map[string]string{
-		"unknown":          strings.Replace(string(data), `"version": 1`, `"version": 1, "typo": true`, 1),
-		"duplicate":        strings.Replace(string(data), `"version": 1`, `"version": 1, "version": 1`, 1),
+		"unknown":          strings.Replace(string(data), `"version": 2`, `"version": 2, "typo": true`, 1),
+		"duplicate":        strings.Replace(string(data), `"version": 2`, `"version": 2, "version": 2`, 1),
 		"nested duplicate": strings.Replace(string(data), `"driver": "postgres"`, `"driver": "postgres", "driver": "mongo"`, 1),
 		"trailing":         string(data) + ` {}`, "null": "null", "missing": `{}`, "oversized": strings.Repeat(" ", 1<<20+1),
 	} {
@@ -31,12 +31,12 @@ func TestStrictConfiguration(t *testing.T) {
 		})
 	}
 	for name, mutate := range map[string]func(*Config){
-		"driver": func(c *Config) { c.Database.Driver = "memory" }, "local": func(c *Config) { c.Local = true },
+		"driver": func(c *Config) { c.Database.Driver = "memory" }, "package": func(c *Config) { c.Application.Package = "../escape" },
 		"image": func(c *Config) { c.Image = "repo:latest" }, "cross-provider": func(c *Config) { c.AWS = &AWS{} },
 		"secret": func(c *Config) { c.Database.Secret.Version = "latest" }, "reserved": func(c *Config) { c.Secrets = map[string]Secret{"PORT": {Reference: "port", Version: "1"}} },
 	} {
 		t.Run(name, func(t *testing.T) {
-			copy := c
+			copy := Example("gcp", "postgres")
 			mutate(&copy)
 			if err := copy.Validate(); err == nil {
 				t.Fatal("accepted invalid configuration")
@@ -146,6 +146,10 @@ func TestOfflineCLI(t *testing.T) {
 func TestSubprocessFailureAndOfflineEnvironment(t *testing.T) {
 	dir := t.TempDir()
 	record := filepath.Join(dir, "record")
+	data, _ := encode(Example("gcp", "postgres"))
+	if err := os.WriteFile(filepath.Join(dir, "blossm.json"), data, 0600); err != nil {
+		t.Fatal(err)
+	}
 	t.Setenv("RECORD", record)
 	script := "#!/bin/sh\nprintf '%s\\n' \"$GOPROXY\" \"$GOSUMDB\" \"$GOTOOLCHAIN\" \"$GOWORK\" \"$@\" > \"$RECORD\"\nexit 17\n"
 	if err := os.WriteFile(filepath.Join(dir, "go"), []byte(script), 0700); err != nil {
@@ -226,7 +230,7 @@ func TestRuntimeSecretsAndPublication(t *testing.T) {
 			t.Fatal(err)
 		}
 		b, _ := encode(p)
-		for _, key := range []string{"JWT_PRIVATE_KEY", "DIA_HMAC_KEY", "DIA_ENCRYPTION_KEY", "PUBLISHER", "PUBLICATION_TOPIC"} {
+		for _, key := range []string{"API_KEY", "PUBLICATION_TOPIC"} {
 			if !bytes.Contains(b, []byte(key)) {
 				t.Fatalf("missing %s in %s", key, provider)
 			}
@@ -237,12 +241,12 @@ func TestRuntimeSecretsAndPublication(t *testing.T) {
 		if provider == "aws" && !bytes.Contains(b, []byte("PUBLICATION_QUEUE_URL")) {
 			t.Fatal("missing queue")
 		}
-		delete(c.Secrets, "JWT_PRIVATE_KEY")
+		c.Env = map[string]string{"PUBLICATION_TOPIC": "override"}
 		if err = c.Validate(); err == nil {
-			t.Fatal("accepted missing signing key reference")
+			t.Fatal("accepted protected publication override")
 		}
 		c = Example(provider, "postgres")
-		c.Publication = Publication{}
+		c.Publication = &Publication{}
 		if err = c.Validate(); err == nil {
 			t.Fatal("accepted missing publication config")
 		}

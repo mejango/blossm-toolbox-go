@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/mejango/blossm-toolbox-go/eventstore"
 	"github.com/mejango/blossm-toolbox-go/storage/internal/queryindex"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
 )
 
 var _ eventstore.CandidateReader = (*transaction)(nil)

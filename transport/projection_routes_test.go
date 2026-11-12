@@ -10,11 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mejango/blossm-toolbox-go/dia"
-	"github.com/mejango/blossm-toolbox-go/eventstore"
-	"github.com/mejango/blossm-toolbox-go/projection"
+	"github.com/mejango/blossm-toolbox-go/procedures/projection"
 	"github.com/mejango/blossm-toolbox-go/rpc"
-	"github.com/mejango/blossm-toolbox-go/view"
+	"github.com/mejango/blossm-toolbox-go/security/authn"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
+	"github.com/mejango/blossm-toolbox-go/stores/view"
 )
 
 type projectionAggregateFn func(context.Context, eventstore.Root) (eventstore.Aggregate, error)
@@ -109,10 +109,10 @@ func TestProjectionHTTPRPC(t *testing.T) {
 	}
 	routes := ProjectionRoutes{Resolve: func(r *http.Request, op ProjectionOperation) (ProjectionBinding, error) {
 		if r.Header.Get("Authorization") != "Bearer fixture" {
-			return ProjectionBinding{}, dia.ErrUnauthorized
+			return ProjectionBinding{}, authn.ErrUnauthorized
 		}
 		if op.Name != "bird" || (!op.Replay && op.RootID != "allowed") {
-			return ProjectionBinding{}, dia.ErrForbidden
+			return ProjectionBinding{}, authn.ErrForbidden
 		}
 		return ProjectionBinding{Source: source, Engine: engine, Scheduler: scheduler}, nil
 	}}

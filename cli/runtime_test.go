@@ -8,15 +8,12 @@ import (
 	"testing"
 )
 
-func TestFrameworkRuntimePlans(t *testing.T) {
+func TestApplicationRuntimePlans(t *testing.T) {
 	for _, provider := range []string{"gcp", "aws"} {
 		for _, driver := range []string{"postgres", "mongo"} {
 			c := Example(provider, driver)
 			c.Delivery = deliveryExample(provider)
-			c.Runtime = "framework"
-			c.Service = "documents"
-			c.InternalSubject = "document-peer"
-			c.IdentityNamespace = "blossm_identity"
+			c.Env = map[string]string{"APP_SETTING": "configured"}
 			p, err := Prepare(c)
 			if err != nil {
 				t.Fatal(err)
@@ -38,7 +35,7 @@ func TestFrameworkRuntimePlans(t *testing.T) {
 				entry = "entryPoint"
 				envField = "environment"
 			}
-			if container[entry].([]any)[0] != "/framework" {
+			if container[entry].([]any)[0] != "/server" {
 				t.Fatal("wrong executable", container[entry])
 			}
 			env := map[string]string{}
@@ -48,20 +45,15 @@ func TestFrameworkRuntimePlans(t *testing.T) {
 					env[v["name"].(string)] = s
 				}
 			}
-			for key, want := range map[string]string{"SERVICE": "documents", "INTERNAL_SUBJECT": "document-peer", "IDENTITY_DATABASE_NAMESPACE": "blossm_identity", "DATABASE_NAMESPACE": "blossm", "PUBLICATION_MODE": provider, "JWT_SIGNER": "local"} {
+			for key, want := range map[string]string{"APP_SETTING": "configured", "DATABASE_NAMESPACE": "sample"} {
 				if env[key] != want {
-					t.Fatalf("%s=%q, want %q", key, env[key], want)
+					t.Fatalf("%s=%q", key, env[key])
 				}
 			}
-			if _, ok := env["LOCAL_MODE"]; ok {
-				t.Fatal("framework received Dia local contract")
-			}
-			if _, ok := env["PUBLISHER"]; ok {
-				t.Fatal("framework received Dia publisher contract")
-			}
-			c.IdentityNamespace = c.Database.Namespace
-			if _, err = Prepare(c); err == nil {
-				t.Fatal("shared namespace accepted")
+			for _, key := range []string{"LOCAL_MODE", "PUBLISHER", "PUBLICATION_MODE", "JWT_SIGNER"} {
+				if _, ok := env[key]; ok {
+					t.Fatalf("invented app requirement %s", key)
+				}
 			}
 		}
 	}
@@ -70,7 +62,8 @@ func TestFrameworkRuntimePlans(t *testing.T) {
 func TestSigningConfiguration(t *testing.T) {
 	for _, provider := range []string{"gcp", "aws"} {
 		c := Example(provider, "postgres")
-		c.Signing = Signing{Provider: provider, KMSKey: "configured-key"}
+		c.Signing = &Signing{Provider: provider, KMSKey: "configured-key"}
+		c.Secrets["JWT_PRIVATE_KEY"] = c.Secrets["API_KEY"]
 		c.Secrets["JWT_PUBLIC_KEY"] = c.Secrets["JWT_PRIVATE_KEY"]
 		if _, err := Prepare(c); err == nil {
 			t.Fatal("mixed private and cloud signing accepted")
@@ -88,20 +81,20 @@ func TestSigningConfiguration(t *testing.T) {
 			t.Fatal("missing pinned public key accepted")
 		}
 		c = Example(provider, "postgres")
-		c.Signing.KMSKey = "unexpected"
+		c.Signing = &Signing{Provider: "local", KMSKey: "unexpected"}
 		if _, err = Prepare(c); err == nil {
 			t.Fatal("local KMS key accepted")
 		}
 		c = Example(provider, "postgres")
-		c.Signing.Provider = ""
+		c.Signing = &Signing{}
 		if _, err = Prepare(c); err == nil {
 			t.Fatal("implicit signer accepted")
 		}
 	}
 }
 
-func TestFrameworkCheckedExamples(t *testing.T) {
-	for _, name := range []string{"gcp-framework-postgres.json", "aws-framework-mongo.json"} {
+func TestDeliveryCheckedExamples(t *testing.T) {
+	for _, name := range []string{"gcp-delivery-postgres.json", "aws-delivery-mongo.json"} {
 		data, err := os.Open(filepath.Join("..", "deploy", "examples", name))
 		if err != nil {
 			t.Fatal(err)
@@ -111,8 +104,8 @@ func TestFrameworkCheckedExamples(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if c.Runtime != "framework" {
-			t.Fatal("wrong runtime")
+		if c.Delivery == nil {
+			t.Fatal("missing delivery")
 		}
 		if _, err = Prepare(c); err != nil {
 			t.Fatal(err)
@@ -130,12 +123,8 @@ func deliveryExample(provider string) *Delivery {
 func TestDeliveryConfigRejectsUnsafePlans(t *testing.T) {
 	for _, provider := range []string{"gcp", "aws"} {
 		c := Example(provider, "postgres")
-		c.Runtime = "framework"
-		c.Service = "documents"
-		c.InternalSubject = "peer"
-		c.IdentityNamespace = "identity"
-		if _, err := Prepare(c); err == nil {
-			t.Fatal("missing delivery accepted")
+		if _, err := Prepare(c); err != nil {
+			t.Fatal("optional delivery rejected", err)
 		}
 		c.Delivery = deliveryExample(provider)
 		if _, err := Prepare(c); err != nil {
@@ -158,14 +147,10 @@ func TestDeliveryConfigRejectsUnsafePlans(t *testing.T) {
 	}
 }
 
-func TestFrameworkPeerAuthorityConfiguration(t *testing.T) {
+func TestPeerAuthorityConfiguration(t *testing.T) {
 	c := Example("gcp", "postgres")
-	c.Runtime = "framework"
-	c.Service = "documents"
-	c.InternalSubject = "peer"
-	c.IdentityNamespace = "identity"
 	c.Delivery = deliveryExample("gcp")
-	c.Peers = &Peers{OutboundURL: "https://child.example.invalid", OutboundService: "child", DelegatedSubject: "example.test/parent"}
+	c.Peers = &Peers{Network: "example.test", Service: "sample", OutboundURL: "https://child.example.invalid", OutboundService: "child", DelegatedSubject: "example.test/parent"}
 	if _, err := Prepare(c); err != nil {
 		t.Fatal(err)
 	}
@@ -177,6 +162,8 @@ func TestFrameworkPeerAuthorityConfiguration(t *testing.T) {
 		t.Fatal("invented identity override")
 	}
 	for _, bad := range []Peers{{OutboundService: "child"}, {OutboundURL: "https://child.example.invalid"}, {OutboundURL: "http://child.example.invalid", OutboundService: "child"}, {DelegatedSubject: "foreign/parent"}, {DelegatedSubject: "example.test/parent/nested"}, {OutboundURL: "https://user:secret@child.example.invalid", OutboundService: "child"}} {
+		bad.Network = "example.test"
+		bad.Service = "sample"
 		c.Peers = &bad
 		if _, err := Prepare(c); err == nil {
 			t.Fatal("unsafe peer config accepted", bad)
@@ -241,8 +228,9 @@ func TestPlansRequireOperatorRedrivePolicy(t *testing.T) {
 	}
 }
 
-func TestFrameworkRejectsUnverifiedCloudRunIAMDelivery(t *testing.T) {
-	c := internalExample()
+func TestRejectsUnverifiedCloudRunIAMDelivery(t *testing.T) {
+	c := Example("gcp", "postgres")
+	c.Delivery = deliveryExample("gcp")
 	c.GCP.Invocation = "iam"
 	if _, err := Prepare(c); err == nil || !strings.Contains(err.Error(), "intact Google token forwarding") {
 		t.Fatal("unsupported delivery mode accepted", err)
@@ -254,6 +242,126 @@ func TestFrameworkRejectsUnverifiedCloudRunIAMDelivery(t *testing.T) {
 	c = Example("gcp", "postgres")
 	c.GCP.Invocation = "iam"
 	if _, err := Prepare(c); err != nil {
-		t.Fatal("explicit Dia edge mode rejected", err)
+		t.Fatal("explicit IAM edge mode rejected", err)
+	}
+}
+
+// Signing credentials have one source: secret references, never inline environment.
+func TestSigningCredentialEnvironmentRejected(t *testing.T) {
+	for _, platform := range []string{"gcp", "aws"} {
+		for _, signer := range []string{"local", "gcp", "aws"} {
+			t.Run(platform+"/"+signer, func(t *testing.T) {
+				c := Example(platform, "postgres")
+				c.Signing = &Signing{Provider: signer}
+				required := "JWT_PRIVATE_KEY"
+				if signer != "local" {
+					c.Signing.KMSKey = "configured-key"
+					required = "JWT_PUBLIC_KEY"
+				}
+				c.Secrets[required] = c.Secrets["API_KEY"]
+				p, err := Prepare(c)
+				if err != nil || p.Status != "prepared-only" {
+					t.Fatal("valid signer reference rejected", err)
+				}
+				if _, ok := c.RuntimeEnv()[required]; ok {
+					t.Fatal("secret rendered as plain env")
+				}
+				for _, key := range []string{"JWT_PRIVATE_KEY", "JWT_PUBLIC_KEY"} {
+					for _, value := range []string{"", "sensitive-inline-key"} {
+						c.Env = map[string]string{key: value}
+						p, err = Prepare(c)
+						if err == nil || !strings.Contains(err.Error(), "secret reference") {
+							t.Fatalf("accepted inline %s: %v", key, err)
+						}
+						if len(p.Artifacts) != 0 || strings.Contains(err.Error(), "sensitive-inline-key") {
+							t.Fatal("rejected key leaked into output")
+						}
+					}
+				}
+				c.Env = nil
+				delete(c.Secrets, required)
+				if _, err = Prepare(c); err == nil {
+					t.Fatal("missing required key reference accepted")
+				}
+			})
+		}
+	}
+	for _, key := range []string{"JWT_PRIVATE_KEY", "JWT_PUBLIC_KEY"} {
+		c := Example("gcp", "postgres")
+		c.Env = map[string]string{key: "sensitive-inline-key"}
+		if _, err := Prepare(c); err == nil {
+			t.Fatal("omitting signer bypassed reference requirement", key)
+		}
+	}
+}
+
+func TestMongoPhysicalDatabaseIndependentOfNamespace(t *testing.T) {
+	for _, provider := range []string{"gcp", "aws"} {
+		for _, namespace := range []string{"identity", "documents"} {
+			c := Example(provider, "mongo")
+			c.Database.Name = "shared_app"
+			c.Database.Namespace = namespace
+			p, err := Prepare(c)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if c.RuntimeEnv()["MONGODB_DATABASE"] != "shared_app" || c.RuntimeEnv()["DATABASE_NAMESPACE"] != namespace {
+				t.Fatal("physical database coupled to namespace", c.RuntimeEnv())
+			}
+			artifact := "cloud-run.json"
+			if provider == "aws" {
+				artifact = "ecs-task.json"
+			}
+			var root map[string]any
+			if err = json.Unmarshal(p.Artifacts[artifact], &root); err != nil {
+				t.Fatal(err)
+			}
+			var container map[string]any
+			field := "env"
+			if provider == "gcp" {
+				container = root["spec"].(map[string]any)["template"].(map[string]any)["spec"].(map[string]any)["containers"].([]any)[0].(map[string]any)
+			} else {
+				container = root["containerDefinitions"].([]any)[0].(map[string]any)
+				field = "environment"
+			}
+			env := map[string]string{}
+			for _, item := range container[field].([]any) {
+				entry := item.(map[string]any)
+				if value, ok := entry["value"].(string); ok {
+					env[entry["name"].(string)] = value
+				}
+			}
+			if env["MONGODB_DATABASE"] != "shared_app" || env["DATABASE_NAMESPACE"] != namespace {
+				t.Fatal("incorrect prepared database environment", env)
+			}
+		}
+		for _, name := range []string{"", "../db", "db.with.dot", "db/name", "db name", "db\x00name", strings.Repeat("a", 64)} {
+			c := Example(provider, "mongo")
+			c.Database.Name = name
+			if _, err := Prepare(c); err == nil {
+				t.Fatal("unsafe mongo physical name", name)
+			}
+		}
+		for _, name := range []string{"1DB-name_", strings.Repeat("a", 63)} {
+			c := Example(provider, "mongo")
+			c.Database.Name = name
+			if _, err := Prepare(c); err != nil {
+				t.Fatal("valid backend physical name rejected", name, err)
+			}
+			if c.RuntimeEnv()["MONGODB_DATABASE"] != name {
+				t.Fatal("physical name normalized")
+			}
+		}
+		c := Example(provider, "postgres")
+		if _, err := Prepare(c); err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := c.RuntimeEnv()["MONGODB_DATABASE"]; ok {
+			t.Fatal("postgres emitted mongo database")
+		}
+		c.Database.Name = "unexpected"
+		if _, err := Prepare(c); err == nil {
+			t.Fatal("postgres accepted mongo-only name")
+		}
 	}
 }

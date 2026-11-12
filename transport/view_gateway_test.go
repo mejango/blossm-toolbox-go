@@ -13,11 +13,11 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/mejango/blossm-toolbox-go/dia"
-	"github.com/mejango/blossm-toolbox-go/eventstore"
-	"github.com/mejango/blossm-toolbox-go/fact"
+	"github.com/mejango/blossm-toolbox-go/procedures/fact"
 	"github.com/mejango/blossm-toolbox-go/rpc"
-	"github.com/mejango/blossm-toolbox-go/view"
+	"github.com/mejango/blossm-toolbox-go/security/authn"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
+	"github.com/mejango/blossm-toolbox-go/stores/view"
 )
 
 // Transactional fixture exercises the real view owner and transport together.
@@ -96,7 +96,7 @@ func gatewayAuth(r *http.Request, op, name string) (view.Scope, error) {
 		return view.Scope{}, errors.New("secret auth failure")
 	}
 	if op == "batch" && r.Header.Get("Write") != "yes" {
-		return view.Scope{}, dia.ErrForbidden
+		return view.Scope{}, authn.ErrForbidden
 	}
 	return gatewayScope(), nil
 }

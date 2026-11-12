@@ -11,9 +11,9 @@ import (
 	"syscall"
 	"unicode/utf8"
 
-	"github.com/mejango/blossm-toolbox-go/command"
-	"github.com/mejango/blossm-toolbox-go/eventstore"
-	"github.com/mejango/blossm-toolbox-go/view"
+	"github.com/mejango/blossm-toolbox-go/procedures/command"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
+	"github.com/mejango/blossm-toolbox-go/stores/view"
 )
 
 type RejectionReason string

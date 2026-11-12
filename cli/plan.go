@@ -29,14 +29,17 @@ func Prepare(c Config) (Plan, error) {
 		return Plan{}, err
 	}
 	p := Plan{Version: 1, Status: "prepared-only", Provider: c.Provider, Artifacts: map[string]json.RawMessage{}, Prerequisites: []string{
-		fmt.Sprintf("Build and push the reviewed image containing /%s separately; replace the example image with your registry reference, preferably a digest.", c.Runtime),
-		"Provision database with TLS, network reachability and appropriate least-privilege credentials; configure its selected namespace.",
+		fmt.Sprintf("Build and push the reviewed image containing %s separately; replace the example image with your registry reference, preferably a digest.", c.Application.Entrypoint),
+		"If database configuration is present, provision TLS, network reachability and least-privilege credentials for its namespace.",
 		"Provision all secret references and grant the platform identity permission to read only the required secrets.",
-		"Provision signing secrets for the selected runtimeauth mode: local PKCS8 P256 JWT_PRIVATE_KEY, or cloud KMS key plus pinned PKIX P256 JWT_PUBLIC_KEY. Provision separate base64 32-byte DIA_HMAC_KEY and DIA_ENCRYPTION_KEY; configure narrow signer and publication permissions.",
+		"When signing is configured, provision its local PKCS8 P256 private key or cloud KMS key and pinned PKIX P256 public key. Review application-specific secret formats with the application owner; configure narrow signer permissions.",
 		"Before execution, define retry limits, retention, poison-message quarantine/redrive and operator recovery. Provision AWS SQS dead-letter/redrive policy separately, including FIFO blocking behavior; for GCP Tasks review queue retry policy and recovery/inspection procedures. Malformed or untrusted delivery messages are not acknowledged as successful. This plan does not provision a DLQ or redrive policy.",
 		"Review application authentication and public ingress before deployment. This plan creates no IAM role bindings, database, queue, topic or DNS resource; Cloud Run invocation checks follow the explicit selected mode.",
 	}}
-	secrets := map[string]Secret{c.DatabaseEnv(): c.Database.Secret}
+	secrets := map[string]Secret{}
+	if c.Database != nil {
+		secrets[c.DatabaseEnv()] = c.Database.Secret
+	}
 	for k, v := range c.Secrets {
 		secrets[k] = v
 	}
@@ -60,7 +63,7 @@ func Prepare(c Config) (Plan, error) {
 			env = append(env, map[string]any{"name": k, "valueFrom": map[string]any{"secretKeyRef": map[string]string{"name": secrets[k].Reference, "key": secrets[k].Version}}})
 		}
 		// Cloud Run injects PORT from containerPort; explicit PORT env is forbidden there.
-		service := map[string]any{"apiVersion": "serving.knative.dev/v1", "kind": "Service", "metadata": map[string]any{"name": c.Name, "namespace": c.GCP.Project, "annotations": map[string]string{"run.googleapis.com/ingress": "internal-and-cloud-load-balancing", "run.googleapis.com/invoker-iam-disabled": strconv.FormatBool(c.GCP.Invocation == "application")}}, "spec": map[string]any{"template": map[string]any{"metadata": map[string]any{"annotations": map[string]string{"autoscaling.knative.dev/maxScale": "10", "autoscaling.knative.dev/minScale": "1", "run.googleapis.com/cpu-throttling": "false"}}, "spec": map[string]any{"serviceAccountName": c.GCP.ServiceAccount, "containerConcurrency": 80, "timeoutSeconds": 300, "containers": []any{map[string]any{"image": c.Image, "command": []string{"/" + c.Runtime}, "ports": []any{map[string]any{"containerPort": c.Port}}, "env": env, "resources": map[string]any{"limits": map[string]string{"cpu": "1", "memory": "512Mi"}}}}}}}}
+		service := map[string]any{"apiVersion": "serving.knative.dev/v1", "kind": "Service", "metadata": map[string]any{"name": c.Name, "namespace": c.GCP.Project, "annotations": map[string]string{"run.googleapis.com/ingress": "internal-and-cloud-load-balancing", "run.googleapis.com/invoker-iam-disabled": strconv.FormatBool(c.GCP.Invocation == "application")}}, "spec": map[string]any{"template": map[string]any{"metadata": map[string]any{"annotations": map[string]string{"autoscaling.knative.dev/maxScale": "10", "autoscaling.knative.dev/minScale": "1", "run.googleapis.com/cpu-throttling": "false"}}, "spec": map[string]any{"serviceAccountName": c.GCP.ServiceAccount, "containerConcurrency": 80, "timeoutSeconds": 300, "containers": []any{map[string]any{"image": c.Image, "command": []string{c.Application.Entrypoint}, "ports": []any{map[string]any{"containerPort": c.Port}}, "env": env, "resources": map[string]any{"limits": map[string]string{"cpu": "1", "memory": "512Mi"}}}}}}}}
 		b, err := encode(service)
 		if err != nil {
 			return p, err
@@ -83,7 +86,7 @@ func Prepare(c Config) (Plan, error) {
 		for _, k := range names {
 			refs = append(refs, map[string]string{"name": k, "valueFrom": secrets[k].Reference})
 		}
-		task := map[string]any{"family": c.Name, "networkMode": "awsvpc", "requiresCompatibilities": []string{"FARGATE"}, "cpu": "256", "memory": "512", "executionRoleArn": c.AWS.ExecutionRole, "taskRoleArn": c.AWS.TaskRole, "runtimePlatform": map[string]string{"operatingSystemFamily": "LINUX", "cpuArchitecture": "X86_64"}, "containerDefinitions": []any{map[string]any{"name": c.Name, "image": c.Image, "entryPoint": []string{"/" + c.Runtime}, "essential": true, "readonlyRootFilesystem": true, "user": "65532:65532", "portMappings": []any{map[string]any{"containerPort": c.Port, "protocol": "tcp", "appProtocol": "http"}}, "environment": env, "secrets": refs, "logConfiguration": map[string]any{"logDriver": "awslogs", "options": map[string]string{"awslogs-group": c.AWS.LogGroup, "awslogs-region": c.AWS.Region, "awslogs-stream-prefix": c.Name}}}}}
+		task := map[string]any{"family": c.Name, "networkMode": "awsvpc", "requiresCompatibilities": []string{"FARGATE"}, "cpu": "256", "memory": "512", "executionRoleArn": c.AWS.ExecutionRole, "taskRoleArn": c.AWS.TaskRole, "runtimePlatform": map[string]string{"operatingSystemFamily": "LINUX", "cpuArchitecture": "X86_64"}, "containerDefinitions": []any{map[string]any{"name": c.Name, "image": c.Image, "entryPoint": []string{c.Application.Entrypoint}, "essential": true, "readonlyRootFilesystem": true, "user": "65532:65532", "portMappings": []any{map[string]any{"containerPort": c.Port, "protocol": "tcp", "appProtocol": "http"}}, "environment": env, "secrets": refs, "logConfiguration": map[string]any{"logDriver": "awslogs", "options": map[string]string{"awslogs-group": c.AWS.LogGroup, "awslogs-region": c.AWS.Region, "awslogs-stream-prefix": c.Name}}}}}
 		service := map[string]any{"cluster": c.AWS.Cluster, "serviceName": c.Name, "taskDefinition": c.Name, "desiredCount": 1, "launchType": "FARGATE", "platformVersion": "1.4.0", "deploymentConfiguration": map[string]any{"deploymentCircuitBreaker": map[string]bool{"enable": true, "rollback": true}}, "networkConfiguration": map[string]any{"awsvpcConfiguration": map[string]any{"subnets": c.AWS.Subnets, "securityGroups": c.AWS.SecurityGroups, "assignPublicIp": "DISABLED"}}, "loadBalancers": []any{map[string]any{"targetGroupArn": c.AWS.TargetGroupARN, "containerName": c.Name, "containerPort": c.Port}}}
 		for name, v := range map[string]any{"ecs-task.json": task, "ecs-service.json": service} {
 			b, err := encode(v)
@@ -92,21 +95,23 @@ func Prepare(c Config) (Plan, error) {
 			}
 			p.Artifacts[name] = b
 		}
-		queueAttributes, err := encode(map[string]string{"MaximumMessageSize": strconv.Itoa(c.Publication.MaximumMessageSize)})
-		if err != nil {
-			return p, err
+		if c.Publication != nil {
+			queueAttributes, err := encode(map[string]string{"MaximumMessageSize": strconv.Itoa(c.Publication.MaximumMessageSize)})
+			if err != nil {
+				return p, err
+			}
+			subscription, err := encode(map[string]any{"TopicArn": c.Publication.Topic, "Protocol": "sqs", "Endpoint": c.Publication.QueueARN, "Attributes": map[string]string{"RawMessageDelivery": "true"}, "ReturnSubscriptionArn": true})
+			if err != nil {
+				return p, err
+			}
+			p.Artifacts["sqs-publication-attributes.json"] = queueAttributes
+			p.Artifacts["sns-publication-subscription.json"] = subscription
+			p.PreparationCommands = [][]string{
+				{"aws", "sqs", "set-queue-attributes", "--queue-url", c.Publication.QueueURL, "--attributes", "file://sqs-publication-attributes.json", "--region", c.AWS.Region, "--no-cli-pager"},
+				{"aws", "sns", "subscribe", "--cli-input-json", "file://sns-publication-subscription.json", "--region", c.AWS.Region, "--no-cli-pager"},
+			}
+			p.Prerequisites = append(p.Prerequisites, "Before deployment, review and explicitly apply publication preparation commands to the existing queue/topic. Require raw SNS-to-SQS delivery and MaximumMessageSize >=262144. Existing subscriptions must also have RawMessageDelivery=true verified; subscribe output alone does not prove delivery. Provision narrowly scoped topic-to-queue policy separately; no IAM policy is generated or broadened.", "Complete Publication limit is245760bytes (240KiB); plus77bytes for eventId String attribute fits SNS262144. Envelope decoding compatibility does not extend that size guarantee. Preparation commands are not automatically run by deploy --execute.")
 		}
-		subscription, err := encode(map[string]any{"TopicArn": c.Publication.Topic, "Protocol": "sqs", "Endpoint": c.Publication.QueueARN, "Attributes": map[string]string{"RawMessageDelivery": "true"}, "ReturnSubscriptionArn": true})
-		if err != nil {
-			return p, err
-		}
-		p.Artifacts["sqs-publication-attributes.json"] = queueAttributes
-		p.Artifacts["sns-publication-subscription.json"] = subscription
-		p.PreparationCommands = [][]string{
-			{"aws", "sqs", "set-queue-attributes", "--queue-url", c.Publication.QueueURL, "--attributes", "file://sqs-publication-attributes.json", "--region", c.AWS.Region, "--no-cli-pager"},
-			{"aws", "sns", "subscribe", "--cli-input-json", "file://sns-publication-subscription.json", "--region", c.AWS.Region, "--no-cli-pager"},
-		}
-		p.Prerequisites = append(p.Prerequisites, "Before deployment, review and explicitly apply publication preparation commands to the existing queue/topic. Require raw SNS-to-SQS delivery and MaximumMessageSize >=262144. Existing subscriptions must also have RawMessageDelivery=true verified; subscribe output alone does not prove delivery. Provision narrowly scoped topic-to-queue policy separately; no IAM policy is generated or broadened.", "Complete Publication limit is245760bytes (240KiB); plus77bytes for eventId String attribute fits SNS262144. Envelope decoding compatibility does not extend that size guarantee. Preparation commands are not automatically run by deploy --execute.")
 		p.Prerequisites = append(p.Prerequisites, "Provision ECS cluster, execution/task roles, CloudWatch log group and private subnet egress or VPC endpoints for image/secret/log access.", "Provision an ALB HTTP target group with target type ip, listener and ingress security groups. Application listens on 0.0.0.0:PORT; align the target-group health-check path with the selected executable.", "Register the task definition first, then replace ecs-service.json taskDefinition with the exact returned ARN/revision. Family-only lookup is not an immutable deployment. Existing services require update-service, not create-service.")
 		p.ReviewCommands = [][]string{{"aws", "ecs", "register-task-definition", "--region", c.AWS.Region, "--cli-input-json", "file://ecs-task.json"}, {"aws", "ecs", "create-service", "--region", c.AWS.Region, "--cli-input-json", "file://ecs-service.json"}}
 	}

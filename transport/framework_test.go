@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/mejango/blossm-toolbox-go/command"
-	"github.com/mejango/blossm-toolbox-go/dia"
-	"github.com/mejango/blossm-toolbox-go/eventstore"
-	"github.com/mejango/blossm-toolbox-go/fact"
+	"github.com/mejango/blossm-toolbox-go/procedures/command"
+	"github.com/mejango/blossm-toolbox-go/procedures/fact"
 	"github.com/mejango/blossm-toolbox-go/rpc"
-	"github.com/mejango/blossm-toolbox-go/view"
+	"github.com/mejango/blossm-toolbox-go/security/authn"
+	"github.com/mejango/blossm-toolbox-go/stores/event"
+	"github.com/mejango/blossm-toolbox-go/stores/view"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -68,11 +68,11 @@ func TestProcedureErrorStatus(t *testing.T) {
 		err    error
 		status int
 	}{
-		{view.ErrInvalid, 400}, {eventstore.ErrNotFound, 404}, {dia.ErrUnavailable, 503}, {fact.ErrInvalid, 400}, {command.ErrInvalid, 400}, {command.ErrForbidden, 403}, {command.ErrQueueUncertain, 503},
+		{view.ErrInvalid, 400}, {eventstore.ErrNotFound, 404}, {authn.ErrUnavailable, 503}, {fact.ErrInvalid, 400}, {command.ErrInvalid, 400}, {command.ErrForbidden, 403}, {command.ErrQueueUncertain, 503},
 	} {
 		t.Run(tc.err.Error(), func(t *testing.T) {
 			response := httptest.NewRecorder()
-			wrap(func(http.ResponseWriter, *http.Request) error { return tc.err })(response, httptest.NewRequest("POST", "/", nil))
+			Wrap(func(http.ResponseWriter, *http.Request) error { return tc.err })(response, httptest.NewRequest("POST", "/", nil))
 			if response.Code != tc.status {
 				t.Fatalf("got %d want %d", response.Code, tc.status)
 			}
@@ -87,11 +87,11 @@ func TestFrameworkMountsScopedAdapters(t *testing.T) {
 		Authorize: func(*http.Request) (Identity, error) { return Identity{}, nil },
 		Views: &ViewGateway{Authorize: func(*http.Request, string, string) (view.Scope, error) {
 			views++
-			return view.Scope{}, dia.ErrForbidden
+			return view.Scope{}, authn.ErrForbidden
 		}},
 		Projections: &ProjectionRoutes{Resolve: func(*http.Request, ProjectionOperation) (ProjectionBinding, error) {
 			projections++
-			return ProjectionBinding{}, dia.ErrForbidden
+			return ProjectionBinding{}, authn.ErrForbidden
 		}},
 	}
 	handler, err := f.Handler(context.Background())
