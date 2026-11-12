@@ -1,0 +1,35 @@
+**Verdict: no correctness findings in the retry policy itself. Two low-severity test gaps mean the cancellation and jitter claims are not actually pinned by the tests.** Read-only review; I ran nothing.
+
+## What holds in `vendors/mongodb/backend.go`
+
+- **Delay bounds:** ceilings are 10, 20, 40, 80, 160, 250, 250... ms and the draw is uniform in [ceiling/2, ceiling] inclusive (`backend.go:148-155`). Nine waits at the default budget total 655 to 1310ms; `MaxAttempts: 100` totals at most about 23.8s.
+- **No wait after the final attempt:** the `attempt+1 < attempts` guard at `backend.go:137` returns the last abort error unchanged.
+- **Cancellation:** `waitRetry` checks the context on entry, selects on `ctx.Done()`, and re-checks after the timer fires. The timer is stopped, and nothing leaks.
+- **Lifecycle:** the deferred `AbortTransaction` in `attempt` runs before the wait, so no transaction or locks are held while sleeping.
+- **Classification:** `run` checks `ErrUncertain` before `retryable`, so an unknown commit never replays the callback. `View` is still pinned to one attempt, and `retryable` is unchanged (owned sentinel or `TransientTransactionError` label only; no code 112 or text matching).
+- **Config:** 0 selects 10 and 1..100 is validated before connecting. README lines 25-29 match the code.
+
+## Findings (both low, tests only)
+
+1. **Mid-wait cancellation is not discriminated by any test.**
+   - `TestRetryWaitCancellation` (`backend_test.go:63-67`) uses a 1ms deadline against a wait of at least 125ms, but only checks the returned error. If the `ctx.Done()` case were removed, the timer branch would still return `DeadlineExceeded` after the full sleep and the test would pass.
+   - The pre-cancelled case only exercises the entry check.
+   - `TestNativeRetryCancellationAndFinalAttempt` with attempts=3 would also pass, because the loop-top check at `backend.go:126` returns `Canceled` with calls==1.
+   - Fix: assert elapsed time in the 1ms-deadline case, for example under 100ms.
+
+2. **Jitter is not pinned.** `TestRetryDelayBounds` passes for a constant `ceiling` or constant `half`. Asserting at least two distinct values across the 100 samples of one attempt would close it.
+
+A smaller, related gap: the upper `MaxAttempts` bound (101) is not in `TestConfiguration`, only -1 is. It is rejected before connecting, so it is a free case to add.
+
+## Test preservation
+
+- **`dia-go/services/identity/native_test.go:89-113`:** the drain is correct. The channel is buffered for 2, both results are received before any `t.Fatal`, errors are joined, and all-success is still required. It opens Mongo with the default budget, so it exercises the 10-attempt policy.
+- **`TestNativeDefaultRetryBudget`:** nine forced aborts, then calls==10 and committed count==1.
+- **`TestNativeRetryBudget`, `TestNativeRetryAndUncertain`, `TestNativeViewDoesNotReplayStreams`:** still assert exact call counts (3, 1 for uncertain, 1 with 128 delivered).
+- **attempts=1 cancellation case:** it does prove no final wait, since a wrongly taken wait would surface `Canceled` instead of `retryTransaction`.
+
+## Caveats
+
+- `failCommand` is server-global. The new test requires exactly nine consumed failures, so it is only sound if nothing else issues `update` against the same mongod at the same time (for example the dia-go native tests in a parallel gate). I could not confirm how the parent gates are sequenced.
+- A cancelled wait returns the bare context error and drops the last abort cause. That is correct for classification (not uncertain), only a loss of diagnostics.
+- I did not open `/tmp/blossm-hierarchy-dia-native-initial-failure.log` or `tasks/todo.md`; the diagnosis and the refinement record are taken from your brief. I read only the 2026-11-12 entry of `tasks/lessons.md`, which the change matches.

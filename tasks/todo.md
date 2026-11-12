@@ -75,4 +75,25 @@ merge remain separate; no deployment or main update occurred.
 - [x] Extract bottom-layer event protocol and small helpers without changing behavior.
 - [x] Restore familiar folders and update all consumers, docs and generators coherently.
 - [x] Enforce folder dependency rules with executable regression checks.
-- [ ] Verify both independent modules and prepare reviewable changes.
+- [x] Verify both independent modules and prepare reviewable changes.
+
+## Plan refinement
+
+- **Objective:** Resolve the native concurrent-challenge failure discovered during final hierarchy verification before completing the requested correction.
+- **System fit:** Mongo's known-abort retry policy protects atomic event/outbox writes; Dia reconciles only an already-visible committed receipt. Preserve uncertain-commit behavior, single-attempt streaming reads and exact operation receipts.
+- **Reuse and simplicity:** Keep the existing labeled-error retry owner. Use bounded jittered exponential waits (10ms initial ceiling, 250ms cap) and ten default total attempts; retain explicit1..100 configuration. Join all concurrent native fixture workers before reporting failure.
+- **Evidence and unknowns:** Preserved final native log proves five callback attempts, TransientTransactionError true, uncertainty false, and exhausted WriteConflict before the winner's receipt was visible. A premature test fatal left another worker logging after test completion, explaining the secondary race. Earlier passing runs did not expose this schedule.
+- **Verification:** Add delay-bound/cancellation tests; retain native retry-budget, unknown-commit and single-attempt View tests. Repeatedly run the real concurrent Dia journey, then rerun affected full native suites and final independent module/container gates. Retain initial failing evidence.
+- **Resource budget:** Separate this behavioral retry fix from the completed mechanical hierarchy commits. Mongo owner changes only its adapter/tests/docs; parent fixes the test lifecycle and public pin. No error-text retries, new conflict classification or cloud writes.
+
+- [x] Correct bounded Mongo contention backoff and prove existing uncertainty/read contracts.
+- [x] Join native fixture workers on failure and reproduce concurrent Dia completion repeatedly.
+- [x] Reverify final public pin, native adapters/application and containers, preserving failed evidence.
+
+### Hierarchy delivery review
+
+All local hierarchy and final public-pin gates passed; exact commands, source
+hashes, initial failure and recovery evidence live in docs/HIERARCHY_VERIFICATION.md.
+The final framework runtime pin is d45c8b4. Original JS and prior verification
+snapshots remain preserved. Review branches are prepared; no new merge or live
+deployment is authorized by this implementation step.

@@ -14559,22 +14559,31 @@
     "evidence_scope": "Historical pre-split checkpoint; not current independent-module execution evidence."
   },
   "verification_stage": {
-    "overall": "hierarchy-verification-pending",
-    "remaining": "Parent reports both source trees compile; full hierarchy verification is running. Prior split results are historical and do not verify this refactor.",
+    "overall": "hierarchy-locally-verified",
+    "remaining": "Final PR approval; hosted checks on later documentation commits tracked separately.",
     "current_checkpoint": {
-      "status": "in-progress",
-      "compile": "Parent reports both source trees compile.",
-      "execution_evidence": "Parent owns final layer/unit/race/native/container and independent-consumer gates; documentation work does not rerun them."
+      "status": "passed",
+      "execution_evidence": "docs/HIERARCHY_VERIFICATION.md",
+      "runtime_revision": "d45c8b4e036cf190b2aaccedc9efdfa78701f640",
+      "independent_dia_revision": "5f4675d3bb51a066fd4698205cb7c4e4423f7ab9",
+      "limits": "Local and hosted framework checks; no live deployment/provider/chain claim."
     }
   },
   "independent_review": {
     "model": "claude-fable-5-2",
     "date": "2026-11-12",
-    "report": "docs/reviews/fable-2026-11-12/triage.md",
-    "status": "Fifth bounded review complete with no blocker in fourth-review deltas; parent reconciled documentation observations. Final frozen-source gates pass. Unchanged code was not re-audited; reviewer ran no tests.",
-    "reproduction": "Historical initial-review overlay probes failed retained-behavior expectations; subsequent owner fixes and regression gates are recorded in closure.md. These historical failures are not current open findings.",
-    "latest_report": "docs/reviews/fable-2026-11-12/claude-remediation-5.txt",
-    "evidence_scope": "Historical pre-split checkpoint; not current independent-module execution evidence."
+    "report": "docs/reviews/hierarchy-2026-11-12/README.md",
+    "status": "Hierarchy source findings closed by follow-up; separate retry review found no runtime defect and its test improvements passed final gates.",
+    "evidence_scope": "Bounded read-only reviews; parent owns actual test execution.",
+    "historical_review": {
+      "model": "claude-fable-5-2",
+      "date": "2026-11-12",
+      "report": "docs/reviews/fable-2026-11-12/triage.md",
+      "status": "Fifth bounded review complete with no blocker in fourth-review deltas; parent reconciled documentation observations. Final frozen-source gates pass. Unchanged code was not re-audited; reviewer ran no tests.",
+      "reproduction": "Historical initial-review overlay probes failed retained-behavior expectations; subsequent owner fixes and regression gates are recorded in closure.md. These historical failures are not current open findings.",
+      "latest_report": "docs/reviews/fable-2026-11-12/claude-remediation-5.txt",
+      "evidence_scope": "Historical pre-split checkpoint; not current independent-module execution evidence."
+    }
   },
   "semantic_coverage": {
     "status": "repository-qualified-source-mapping",
@@ -14826,11 +14835,11 @@
   "source_repositories": {
     "toolbox": {
       "url": "https://github.com/mejango/blossm-toolbox-go",
-      "revision": null
+      "revision": "d45c8b4e036cf190b2aaccedc9efdfa78701f640"
     },
     "dia-go": {
       "url": "https://github.com/mejango/dia-go",
-      "revision": null
+      "revision": "5f4675d3bb51a066fd4698205cb7c4e4423f7ab9"
     }
   },
   "source_path_policy": "Unqualified current paths belong to Toolbox; dia-go: paths belong to independent Dia. Historical JS paths/hashes are unchanged. DIA_SOURCE is checker-only. Current external links use main provisionally until parent pins hierarchy commits; prior split pins remain under prior_split_snapshot.",

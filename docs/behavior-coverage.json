@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "status": "hierarchy-verification-pending",
+  "status": "hierarchy-locally-verified",
   "reference_commit": "372d1c6a3f4699b8714faf15a81dff0b6d8a49a0",
   "historical_snapshot": {
     "repository": "https://github.com/mejango/blossm-toolbox-go",
@@ -38,30 +38,39 @@
   "source_repositories": {
     "toolbox": {
       "url": "https://github.com/mejango/blossm-toolbox-go",
-      "revision": null
+      "revision": "d45c8b4e036cf190b2aaccedc9efdfa78701f640"
     },
     "dia-go": {
       "url": "https://github.com/mejango/dia-go",
-      "revision": null
+      "revision": "5f4675d3bb51a066fd4698205cb7c4e4423f7ab9"
     }
   },
   "baseline_evidence": "docs/verification-baseline/verification-results.json (pre-remediation753 unit/race and927 native results; overlapping totals, not equivalence counts)",
   "current_checkpoint": {
-    "status": "in-progress",
-    "compile": "Parent reports both source trees compile.",
-    "execution_evidence": "Parent owns final layer/unit/race/native/container and independent-consumer gates; documentation work does not rerun them."
+    "status": "passed",
+    "execution_evidence": "docs/HIERARCHY_VERIFICATION.md",
+    "runtime_revision": "d45c8b4e036cf190b2aaccedc9efdfa78701f640",
+    "independent_dia_revision": "5f4675d3bb51a066fd4698205cb7c4e4423f7ab9",
+    "limits": "Local and hosted framework checks; no live deployment/provider/chain claim."
   },
   "review": {
     "model": "claude-fable-5-2",
     "date": "2026-11-12",
-    "report": "docs/reviews/fable-2026-11-12/triage.md",
-    "status": "Fifth bounded review complete with no blocker in fourth-review deltas; parent reconciled documentation observations. Final frozen-source gates pass. Unchanged code was not re-audited; reviewer ran no tests.",
-    "reproduction": "Historical initial-review overlay probes failed retained-behavior expectations; subsequent owner fixes and regression gates are recorded in closure.md. These historical failures are not current open findings.",
-    "latest_report": "docs/reviews/fable-2026-11-12/claude-remediation-5.txt",
-    "evidence_scope": "Historical pre-split checkpoint; not current independent-module execution evidence."
+    "report": "docs/reviews/hierarchy-2026-11-12/README.md",
+    "status": "Hierarchy source findings closed by follow-up; separate retry review found no runtime defect and its test improvements passed final gates.",
+    "evidence_scope": "Bounded read-only reviews; parent owns actual test execution.",
+    "historical_review": {
+      "model": "claude-fable-5-2",
+      "date": "2026-11-12",
+      "report": "docs/reviews/fable-2026-11-12/triage.md",
+      "status": "Fifth bounded review complete with no blocker in fourth-review deltas; parent reconciled documentation observations. Final frozen-source gates pass. Unchanged code was not re-audited; reviewer ran no tests.",
+      "reproduction": "Historical initial-review overlay probes failed retained-behavior expectations; subsequent owner fixes and regression gates are recorded in closure.md. These historical failures are not current open findings.",
+      "latest_report": "docs/reviews/fable-2026-11-12/claude-remediation-5.txt",
+      "evidence_scope": "Historical pre-split checkpoint; not current independent-module execution evidence."
+    }
   },
   "policy": "All retained identities/reference cases are preserved. Repository-qualified assertion anchors are source evidence only; historical passes do not verify this split.",
-  "required_completion": "Parent reports both source trees compile; full hierarchy verification is running. Prior split results are historical and do not verify this refactor.",
+  "required_completion": "Final PR approval; hosted checks on later documentation commits tracked separately.",
   "package_family_assignment": {
     "@blossm/array-difference": "set-membership",
     "@blossm/array-intersection": "set-membership",
@@ -7663,31 +7672,31 @@
         {
           "file": "vendors/mongodb/integration_test.go",
           "test": "TestNativeRollbackAndConstraints",
-          "line": 158,
+          "line": 162,
           "body_sha256": "710085116524e3718453696bbf87ebd9792105054a6f6bc3a59442dd2e1b12ee",
           "assertions": [
             {
-              "line": 170,
+              "line": 174,
               "code": "t.Fatal(err)",
               "predicate_context": "return sentinel\n\t})\n\tif !errors.Is(err, sentinel) {\n\t\tt.Fatal(err)\n\t}"
             },
             {
-              "line": 176,
+              "line": 180,
               "code": "t.Fatal(n)",
               "predicate_context": "n, err := r.Count(ctx, root)\n\t\tmust(t, err)\n\t\tif n != 0 {\n\t\t\tt.Fatal(n)\n\t\t}"
             },
             {
-              "line": 181,
+              "line": 185,
               "code": "t.Fatal(p)",
               "predicate_context": "p, err := r.Pending(ctx, 10)\n\t\tmust(t, err)\n\t\tif len(p) != 0 {\n\t\t\tt.Fatal(p)\n\t\t}"
             },
             {
-              "line": 200,
+              "line": 204,
               "code": "t.Fatal(err)",
               "predicate_context": "}\n\t\t\terr := b.Update(ctx, func(tx eventlib.Tx) error { return appendRaw(ctx, tx, other) })\n\t\t\tif !errors.Is(err, eventlib.ErrConflict) {\n\t\t\t\tt.Fatal(err)\n\t\t\t}"
             },
             {
-              "line": 232,
+              "line": 236,
               "code": "t.Fatal(err)",
               "predicate_context": "return tx.PutBlock(ctx, v)\n\t\t\t})\n\t\t\tif !errors.Is(err, eventlib.ErrConflict) {\n\t\t\t\tt.Fatal(err)\n\t\t\t}"
             }
@@ -7697,26 +7706,26 @@
         {
           "file": "vendors/mongodb/integration_test.go",
           "test": "TestNativeConcurrencyAndSnapshot",
-          "line": 238,
+          "line": 242,
           "body_sha256": "f2969d60ef7761b41a5fab28e4dbcb36e3325f145a43ea11fa7ca2273abc1aaf",
           "assertions": [
             {
-              "line": 278,
+              "line": 282,
               "code": "t.Fatal(n)",
               "predicate_context": "n, err := r.Count(ctx, root)\n\t\t\tmust(t, err)\n\t\t\tif n != 12 {\n\t\t\t\tt.Fatal(n)\n\t\t\t}"
             },
             {
-              "line": 283,
+              "line": 287,
               "code": "t.Fatal(e.Number, seen)",
               "predicate_context": "seen := int64(0)\n\t\t\tmust(t, r.Events(ctx, root, -1, func(e eventlib.Event) error {\n\t\t\t\tif e.Number != seen {\n\t\t\t\t\tt.Fatal(e.Number, seen)\n\t\t\t\t}"
             },
             {
-              "line": 289,
+              "line": 293,
               "code": "t.Fatal(seen)",
               "predicate_context": "return nil\n\t\t\t}))\n\t\t\tif seen != 12 {\n\t\t\t\tt.Fatal(seen)\n\t\t\t}"
             },
             {
-              "line": 296,
+              "line": 300,
               "code": "t.Fatal(\"view lost snapshot\", n)",
               "predicate_context": "n, err := r.Count(ctx, roots[0])\n\t\tmust(t, err)\n\t\tif n != 12 {\n\t\t\tt.Fatal(\"view lost snapshot\", n)\n\t\t}"
             }
@@ -8334,21 +8343,21 @@
         {
           "file": "vendors/mongodb/integration_test.go",
           "test": "TestNativeViewDoesNotReplayStreams",
-          "line": 538,
-          "body_sha256": "7d3767e8cdead2e53e2bb9f8fb956d1f1d4819b7c02a50f1af5e429facfd7c8f",
+          "line": 542,
+          "body_sha256": "e3b16718ac1971b43cd0c2779666d0365250506a2337b7a97cffc78829f1fb42",
           "assertions": [
             {
-              "line": 560,
+              "line": 564,
               "code": "t.Fatal(\"consumer callback replayed\", calls, delivered, err)",
               "predicate_context": "return r.Events(ctx, root, -1, func(eventlib.Event) error { delivered++; return stop })\n\t\t})\n\t\tif !errors.Is(err, stop) || calls != 1 || delivered != 1 {\n\t\t\tt.Fatal(\"consumer callback replayed\", calls, delivered, err)\n\t\t}"
             },
             {
-              "line": 570,
+              "line": 574,
               "code": "t.Fatalf(\"row repeated: number%d delivered%d\", e.Number, delivered)",
               "predicate_context": "calls++\n\t\t\treturn r.Events(ctx, root, -1, func(e eventlib.Event) error {\n\t\t\t\tif e.Number != int64(delivered) {\n\t\t\t\t\tt.Fatalf(\"row repeated: number%d delivered%d\", e.Number, delivered)\n\t\t\t\t}"
             },
             {
-              "line": 577,
+              "line": 581,
               "code": "t.Fatal(\"known abort replayed owned stream\", calls, delivered, err)",
               "predicate_context": "})\n\t\t})\n\t\tif !hasLabel(err, \"TransientTransactionError\") || calls != 1 || delivered != 128 {\n\t\t\tt.Fatal(\"known abort replayed owned stream\", calls, delivered, err)\n\t\t}"
             }
@@ -11132,61 +11141,61 @@
         {
           "file": "vendors/mongodb/integration_test.go",
           "test": "TestNativeEmptyAndRoundtrip",
-          "line": 81,
+          "line": 85,
           "body_sha256": "9de22c11e0c9b61664cf06f2e6c9a0f44b840f9ff46dfe223325ed147c012034",
           "assertions": [
             {
-              "line": 89,
+              "line": 93,
               "code": "t.Fatal(n)",
               "predicate_context": "n, err := r.Count(ctx, root)\n\t\tmust(t, err)\n\t\tif n != 0 {\n\t\t\tt.Fatal(n)\n\t\t}"
             },
             {
-              "line": 93,
+              "line": 97,
               "code": "t.Fatal(err)",
               "predicate_context": "}\n\t\t_, err = r.Find(ctx, \"missing\")\n\t\tif !errors.Is(err, eventlib.ErrNotFound) {\n\t\t\tt.Fatal(err)\n\t\t}"
             },
             {
-              "line": 97,
+              "line": 101,
               "code": "t.Fatal(err)",
               "predicate_context": "}\n\t\t_, err = r.Snapshot(ctx, root)\n\t\tif !errors.Is(err, eventlib.ErrNotFound) {\n\t\t\tt.Fatal(err)\n\t\t}"
             },
             {
-              "line": 101,
+              "line": 105,
               "code": "t.Fatal(err)",
               "predicate_context": "}\n\t\t_, err = r.LastBlock(ctx)\n\t\tif !errors.Is(err, eventlib.ErrNotFound) {\n\t\t\tt.Fatal(err)\n\t\t}"
             },
             {
-              "line": 105,
+              "line": 109,
               "code": "t.Fatal(err)",
               "predicate_context": "}\n\t\t_, err = r.Projection(ctx, \"missing\")\n\t\tif !errors.Is(err, eventlib.ErrNotFound) {\n\t\t\tt.Fatal(err)\n\t\t}"
             },
             {
-              "line": 109,
+              "line": 113,
               "code": "t.Fatal(\"unbounded pending allowed\")",
               "predicate_context": "}\n\t\t_, err = r.Pending(ctx, 0)\n\t\tif err == nil {\n\t\t\tt.Fatal(\"unbounded pending allowed\")\n\t\t}"
             },
             {
-              "line": 130,
+              "line": 134,
               "code": "t.Fatalf(\"event changed: %#v\", got)",
               "predicate_context": "got, err := r.Find(ctx, e.Input.Key)\n\t\tmust(t, err)\n\t\tif !reflect.DeepEqual(got, e) {\n\t\t\tt.Fatalf(\"event changed: %#v\", got)\n\t\t}"
             },
             {
-              "line": 136,
+              "line": 140,
               "code": "t.Fatal(\"snapshot changed\")",
               "predicate_context": "s, err := r.Snapshot(ctx, root)\n\t\tmust(t, err)\n\t\tif !reflect.DeepEqual(s, snap) {\n\t\t\tt.Fatal(\"snapshot changed\")\n\t\t}"
             },
             {
-              "line": 141,
+              "line": 145,
               "code": "t.Fatal(\"block binary changed\")",
               "predicate_context": "v, err := r.LastBlock(ctx)\n\t\tmust(t, err)\n\t\tif !reflect.DeepEqual(v, block) {\n\t\t\tt.Fatal(\"block binary changed\")\n\t\t}"
             },
             {
-              "line": 146,
+              "line": 150,
               "code": "t.Fatal(\"escaped reader usable\")",
               "predicate_context": "return nil\n\t}))\n\tif _, err := escaped.Count(ctx, root); err == nil {\n\t\tt.Fatal(\"escaped reader usable\")\n\t}"
             },
             {
-              "line": 154,
+              "line": 158,
               "code": "t.Fatal(\"event JSON not stored unchanged as BSON binary\")",
               "predicate_context": "want, err := json.Marshal(e)\n\tmust(t, err)\n\tif !ok || !bytes.Equal(data, want) {\n\t\tt.Fatal(\"event JSON not stored unchanged as BSON binary\")\n\t}"
             }
@@ -11196,26 +11205,26 @@
         {
           "file": "vendors/mongodb/integration_test.go",
           "test": "TestNativeProjectionAndNamespace",
-          "line": 378,
+          "line": 382,
           "body_sha256": "b63ad03285d67e37972c88749118d54c527caccf4b97f87f0416f2d55f818ce2",
           "assertions": [
             {
-              "line": 404,
+              "line": 408,
               "code": "t.Fatal(p)",
               "predicate_context": "return err\n\t\t}\n\t\tif p.Version != 12 || !p.Deleted {\n\t\t\tt.Fatal(p)\n\t\t}"
             },
             {
-              "line": 410,
+              "line": 414,
               "code": "t.Fatal(\"stale overwrite\")",
               "predicate_context": "p.Deleted = false\n\t\tok, err := tx.PutProjection(ctx, p)\n\t\tif ok {\n\t\t\tt.Fatal(\"stale overwrite\")\n\t\t}"
             },
             {
-              "line": 420,
+              "line": 424,
               "code": "t.Fatal(err)",
               "predicate_context": "must(t, other.View(ctx, func(r eventlib.Reader) error {\n\t\t_, err := r.Projection(ctx, \"id\")\n\t\tif !errors.Is(err, eventlib.ErrNotFound) {\n\t\t\tt.Fatal(err)\n\t\t}"
             },
             {
-              "line": 430,
+              "line": 434,
               "code": "t.Fatal(p)",
               "predicate_context": "must(t, reopened.View(ctx, func(r eventlib.Reader) error {\n\t\tp, err := r.Projection(ctx, \"id\")\n\t\tif p.Version != 12 {\n\t\t\tt.Fatal(p)\n\t\t}"
             }
@@ -11225,21 +11234,21 @@
         {
           "file": "vendors/mongodb/integration_test.go",
           "test": "TestNativeRetryAndUncertain",
-          "line": 455,
+          "line": 459,
           "body_sha256": "b1f39faed1dc8f5446e4c8cc882f04473b0e3644dec8b9293194ffd99fee9a8d",
           "assertions": [
             {
-              "line": 462,
+              "line": 466,
               "code": "t.Fatal(\"transient did not retry\", calls)",
               "predicate_context": "calls := 0\n\tmust(t, b.Update(ctx, func(tx eventlib.Tx) error { calls++; return appendRaw(ctx, tx, testEvent(root, 0)) }))\n\tif calls != 2 {\n\t\tt.Fatal(\"transient did not retry\", calls)\n\t}"
             },
             {
-              "line": 468,
+              "line": 472,
               "code": "t.Fatal(\"uncertain callback replayed\", calls, err)",
               "predicate_context": "calls = 0\n\terr := b.Update(ctx, func(tx eventlib.Tx) error { calls++; return appendRaw(ctx, tx, testEvent(root, 1)) })\n\tif !errors.Is(err, eventlib.ErrUncertain) || calls != 1 {\n\t\tt.Fatal(\"uncertain callback replayed\", calls, err)\n\t}"
             },
             {
-              "line": 474,
+              "line": 478,
               "code": "t.Fatal(\"lost acknowledgement did not exercise committed data\")",
               "predicate_context": "must(t, b.View(ctx, func(r eventlib.Reader) error {\n\t\te, err := r.Find(ctx, testEvent(root, 1).Input.Key)\n\t\tif e.Number != 1 {\n\t\t\tt.Fatal(\"lost acknowledgement did not exercise committed data\")\n\t\t}"
             }
@@ -11249,18 +11258,138 @@
         {
           "file": "vendors/mongodb/integration_test.go",
           "test": "TestNativeRetryBudget",
-          "line": 480,
+          "line": 484,
           "body_sha256": "8a9131de1be0c330e51720dfc12ef9fc9f2c6892be9da1ff45df5ba4b589c49d",
           "assertions": [
             {
-              "line": 487,
+              "line": 491,
               "code": "t.Fatal(\"retry budget not enforced\", calls, err)",
               "predicate_context": "calls := 0\n\terr := b.Update(ctx, func(tx eventlib.Tx) error { calls++; return tx.LockRoots(ctx, []eventlib.Root{testRoot(\"budget\")}) })\n\tif err == nil || calls != 3 {\n\t\tt.Fatal(\"retry budget not enforced\", calls, err)\n\t}"
             },
             {
-              "line": 492,
+              "line": 496,
               "code": "t.Fatal(\"failed retry persisted state\")",
               "predicate_context": "must(t, b.View(ctx, func(r eventlib.Reader) error {\n\t\tn, err := r.Count(ctx, testRoot(\"budget\"))\n\t\tif n != 0 {\n\t\t\tt.Fatal(\"failed retry persisted state\")\n\t\t}"
+            }
+          ],
+          "execution": "current source inspected; hierarchy execution gates tracked separately"
+        },
+        {
+          "file": "vendors/mongodb/integration_test.go",
+          "test": "TestNativeDefaultRetryBudget",
+          "line": 586,
+          "body_sha256": "ef0bf64b2a76384d7e242c4dda45856b233749af7dc9f864a5a8bcb9ab673118",
+          "assertions": [
+            {
+              "line": 589,
+              "code": "t.Fatal(\"default total attempts\", b.attempts)",
+              "predicate_context": "func TestNativeDefaultRetryBudget(t *testing.T) {\n\tb, ctx := fixtureWithAttempts(t, 30*time.Second, 0)\n\tif b.attempts != 10 {\n\t\tt.Fatal(\"default total attempts\", b.attempts)\n\t}"
+            },
+            {
+              "line": 596,
+              "code": "t.Fatal(\"default budget did not survive nine known aborts\", calls)",
+              "predicate_context": "root := testRoot(\"default-budget\")\n\tmust(t, b.Update(ctx, func(tx eventlib.Tx) error { calls++; return appendRaw(ctx, tx, testEvent(root, 0)) }))\n\tif calls != 10 {\n\t\tt.Fatal(\"default budget did not survive nine known aborts\", calls)\n\t}"
+            },
+            {
+              "line": 601,
+              "code": "t.Fatal(\"retry committed incorrect count\", n)",
+              "predicate_context": "must(t, b.View(ctx, func(r eventlib.Reader) error {\n\t\tn, err := r.Count(ctx, root)\n\t\tif n != 1 {\n\t\t\tt.Fatal(\"retry committed incorrect count\", n)\n\t\t}"
+            }
+          ],
+          "execution": "current source inspected; hierarchy execution gates tracked separately"
+        },
+        {
+          "file": "vendors/mongodb/integration_test.go",
+          "test": "TestNativeRetryCancellationAndFinalAttempt",
+          "line": 606,
+          "body_sha256": "0c6e257d76bb1c92d901cd66b4bf1e1f09fc56b29fdf80de484a879a51f91b40",
+          "assertions": [
+            {
+              "line": 615,
+              "code": "t.Fatal(\"canceled callback repeated\", calls)",
+              "predicate_context": "err := b.Update(child, func(eventlib.Tx) error { calls++; cancel(); return retryTransaction })\n\t\tcancel()\n\t\tif calls != 1 {\n\t\t\tt.Fatal(\"canceled callback repeated\", calls)\n\t\t}"
+            },
+            {
+              "line": 618,
+              "code": "t.Fatal(\"final attempt waited instead of preserving abort\", err)",
+              "predicate_context": "t.Fatal(\"canceled callback repeated\", calls)\n\t\t}\n\t\tif attempts == 1 && !errors.Is(err, retryTransaction) {\n\t\t\tt.Fatal(\"final attempt waited instead of preserving abort\", err)\n\t\t}"
+            },
+            {
+              "line": 621,
+              "code": "t.Fatal(\"retry wait ignored cancellation\", err)",
+              "predicate_context": "t.Fatal(\"final attempt waited instead of preserving abort\", err)\n\t\t}\n\t\tif attempts > 1 && !errors.Is(err, context.Canceled) {\n\t\t\tt.Fatal(\"retry wait ignored cancellation\", err)\n\t\t}"
+            }
+          ],
+          "execution": "current source inspected; hierarchy execution gates tracked separately"
+        },
+        {
+          "file": "vendors/mongodb/backend_test.go",
+          "test": "TestRetryDelayBounds",
+          "line": 44,
+          "body_sha256": "7631f856245d348eb80abe701f6f168ebee033977c08ece1408dc096fc72f226",
+          "assertions": [
+            {
+              "line": 52,
+              "code": "t.Fatalf(\"attempt %d delay %s outside [%s,%s]\", attempt, delay, ceiling/2, ceiling)",
+              "predicate_context": "delay := retryDelay(attempt)\n\t\t\tsamples[delay] = true\n\t\t\tif delay < ceiling/2 || delay > ceiling {\n\t\t\t\tt.Fatalf(\"attempt %d delay %s outside [%s,%s]\", attempt, delay, ceiling/2, ceiling)\n\t\t\t}"
+            },
+            {
+              "line": 56,
+              "code": "t.Fatalf(\"attempt %d: jitter produced only one distinct delay in 100 samples\", attempt)",
+              "predicate_context": "}\n\t\t}\n\t\tif len(samples) < 2 {\n\t\t\tt.Fatalf(\"attempt %d: jitter produced only one distinct delay in 100 samples\", attempt)\n\t\t}"
+            },
+            {
+              "line": 60,
+              "code": "t.Fatal(\"cap lost\", delay)",
+              "predicate_context": "}\n\t}\n\tif delay := retryDelay(100); delay < 125*time.Millisecond || delay > 250*time.Millisecond {\n\t\tt.Fatal(\"cap lost\", delay)\n\t}"
+            }
+          ],
+          "execution": "current source inspected; hierarchy execution gates tracked separately"
+        },
+        {
+          "file": "vendors/mongodb/backend_test.go",
+          "test": "TestRetryWaitCancellation",
+          "line": 63,
+          "body_sha256": "94759ade7fa3a98461831a19d274fa157c3ec8436887d01035631eb61ed31804",
+          "assertions": [
+            {
+              "line": 67,
+              "code": "t.Fatal(err)",
+              "predicate_context": "ctx, cancel := context.WithCancel(context.Background())\n\tcancel()\n\tif err := waitRetry(ctx, 99); !errors.Is(err, context.Canceled) {\n\t\tt.Fatal(err)\n\t}"
+            },
+            {
+              "line": 73,
+              "code": "t.Fatal(\"wait ignored deadline\", err)",
+              "predicate_context": "defer stop()\n\tstart := time.Now()\n\tif err := waitRetry(ctx, 99); !errors.Is(err, context.DeadlineExceeded) {\n\t\tt.Fatal(\"wait ignored deadline\", err)\n\t}"
+            },
+            {
+              "line": 76,
+              "code": "t.Fatalf(\"deadline cancellation took %s; want <100ms, before the retry timer minimum of125ms\", elapsed)",
+              "predicate_context": "t.Fatal(\"wait ignored deadline\", err)\n\t}\n\tif elapsed := time.Since(start); elapsed >= 100*time.Millisecond {\n\t\tt.Fatalf(\"deadline cancellation took %s; want <100ms, before the retry timer minimum of125ms\", elapsed)\n\t}"
+            },
+            {
+              "line": 79,
+              "code": "t.Fatal(\"completed wait\", err)",
+              "predicate_context": "t.Fatalf(\"deadline cancellation took %s; want <100ms, before the retry timer minimum of125ms\", elapsed)\n\t}\n\tif err := waitRetry(context.Background(), 0); err != nil {\n\t\tt.Fatal(\"completed wait\", err)\n\t}"
+            }
+          ],
+          "execution": "current source inspected; hierarchy execution gates tracked separately"
+        },
+        {
+          "file": "vendors/mongodb/backend_test.go",
+          "test": "TestRetryClassificationDoesNotExpand",
+          "line": 82,
+          "body_sha256": "da8bd502629708582de949b4c735b57c0d6c9765a0812146f6ae905ed1805213",
+          "assertions": [
+            {
+              "line": 85,
+              "code": "t.Fatal(\"unlabeled error became retryable\", err)",
+              "predicate_context": "func TestRetryClassificationDoesNotExpand(t *testing.T) {\n\tfor _, err := range []error{driver.CommandError{Code: 112, Message: \"WriteConflict\"}, errors.New(\"TransientTransactionError WriteConflict\"), eventlib.ErrConflict} {\n\t\tif retryable(err) {\n\t\t\tt.Fatal(\"unlabeled error became retryable\", err)\n\t\t}"
+            },
+            {
+              "line": 89,
+              "code": "t.Fatal(\"owned known abort lost\")",
+              "predicate_context": "}\n\t}\n\tif !retryable(retryTransaction) {\n\t\tt.Fatal(\"owned known abort lost\")\n\t}"
             }
           ],
           "execution": "current source inspected; hierarchy execution gates tracked separately"
@@ -11461,7 +11590,7 @@
         "packages/vendors/mongodb/db/test/write.js:18",
         "packages/vendors/mongodb/db/test/write.js:30"
       ],
-      "assertion_count": 25,
+      "assertion_count": 40,
       "coverage_boundary": "Current repository-qualified source anchors are inspected, not execution evidence. Historical notes and assertion hashes describe their pre-split or prior independent-module snapshots. All original JS cases remain indexed; family associations do not prove one-to-one parity."
     },
     {

@@ -48,8 +48,8 @@ shared harness packages. The lib-only rule also applies to lib tests, so tests
 that compose cloud signers and JWTs belong in `tests/signing`.
 
 The owning enforcement is `tools/check_layers.py`, maintained with forbidden-edge
-fixtures by the layer-check owner. Its execution and the full relocation gates
-remain parent verification work; this document does not claim they passed.
+fixtures by the layer-check owner. It runs in make fmt-check and CI. The full local relocation gates passed;
+see [verification](HIERARCHY_VERIFICATION.md) for exact evidence and limits.
 
 ## Navigation map
 
@@ -84,9 +84,8 @@ native-only shared harnesses live in tests/querytest and tests/frontiertest.
 
 The previous independent-Dia split and its merged commits are historical
 verification for that source snapshot. Exact logs, manifests and review reports
-remain unchanged. This subsequent hierarchy refactor needs fresh source/link,
-layer, unit/race/native/container and independent-consumer checks; successful
-historical gates do not establish those results.
+remain unchanged. This hierarchy refactor has fresh source/link, layer, unit/race/native/container
+and independent-consumer evidence in [HIERARCHY_VERIFICATION.md](HIERARCHY_VERIFICATION.md).
 
 The [behavior ledger](behavior-coverage.md) preserves original references and
 assertion identities while resolving their current owners. `DIA_SOURCE` supports

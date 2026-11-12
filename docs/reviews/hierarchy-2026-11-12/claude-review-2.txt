@@ -1,0 +1,31 @@
+All three accepted findings are closed by source reading, with no concrete defect remaining in them. Nothing was executed; the fixture and unit/race/vet passes are your results, not mine.
+
+## Closure
+
+**1. lib test build depending on vendors: closed**
+- `lib/jwt/signing_test.go` imports only the standard library. A grep of every `lib/**/*.go` file finds no AWS or Google SDK import and no `vendors/`, `procedures/` or `tests/` import.
+- `tests/signing/signing_test.go` is an external package (`signing_test`) that reaches `lib/jwt` only through public APIs, with its own setup-only `testJWT`. The rotation, malformed-signature, provider-failure and cancellation assertions are all present.
+- The file is untagged, so `make test` and `make race` (`./...`) run it by default.
+- `tools/check_layers.py:195-199` skips test files only outside lib, and adds graph nodes and edges only for non-test files. Lib test imports still get the layer rule and the missing-target check.
+- The cycle hazard I raised is gone: a lib test can no longer import vendors, so a future `vendors -> lib/jwt` edge cannot produce a test-only import cycle.
+- `tools/test_check_layers.py:82-97` covers what you listed: in-package and external lib tests, an ignored build tag, the own-library import producing no fake cycle, and a missing target, including a target that has only test files. `Makefile:11-12` runs both the checker and its fixtures.
+
+**2. Stale paths: closed**
+- `runtime/auth`, `security/token` and `security/authn` no longer appear in any Markdown file.
+- The `transport/*.go` names are gone from `docs/capabilities.md`. They remain only in `procedures/gateways/tasks/projection.md:5` and `auth_gateway.md:43`, which are historical task records and were not part of the finding.
+- `docs/HIERARCHY.md:4, 6` now read "The 154" and "become 154".
+
+**3. Diagram versus checker: closed**
+- `docs/HIERARCHY.md:24-25` adds `vendors -> onchain` and `vendors -> middleware`, matching `ALLOWED`. rpc still builds on lib only in both.
+- Lines 44-48 state the lib-test rule, the exemption for other layers' tests and the ban on runtime imports of `tests/`, consistent with the checker.
+
+## Outside the accepted findings (cosmetic, no action required)
+
+- The same missing-space pattern survives at `docs/HIERARCHY_VERIFICATION.md:18` ("The154-package/59-family", "preserves310"), line 30 ("All11"), and `vendors/docs/external-integrations.md:3, 97`.
+- The navigation row at `docs/HIERARCHY.md:72` lists only `tests/integration`; `tests/signing` is named in the prose at line 48 instead.
+
+## Read bounds
+
+- I read the required root resources and export `AGENTS.md`, my prior review, the checker and its tests, the two signing test files, `docs/HIERARCHY.md` and the top of the `Makefile`.
+- The three other doc fixes were confirmed by grep for the old strings, not by reading the replacement text.
+- I did not re-read production Go; that rests on your byte-identity check against d21c5e8.
