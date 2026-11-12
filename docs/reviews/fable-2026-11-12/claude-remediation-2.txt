@@ -1,0 +1,90 @@
+## Verdict
+
+Three concrete defects are worth reproducing before the final gate, plus four narrower gaps. The earlier findings on fingerprint, `Then`, job claims and signing are resolved in source. Nothing was executed; everything below is from source tracing.
+
+## P1: reproduce and fix
+
+**1. A queued command can be permanently unappendable, and any authenticated user can cause it in serviceapp.**
+- `Procedure.Execute` enqueues prepared events without running the reducer (`command/command.go:222-236`).
+- serviceapp `Main` never reads the existing owner (`serviceapp/document.go:95-111`); ownership is enforced only in `documentReducer.Apply` (`document.go:55`).
+- The consumer returns 503 for every error with no terminal class (`delivery/consume.go:109-112`), and `SQSWorker.Poll` stops at the first failure (`delivery/sqs.go:111-113`).
+- **Scenario:** user B posts `set` with `async:true` on user A's root. B gets QUEUED, and the worker's append then fails `ErrForbidden` on every redelivery. On a FIFO queue with one `GroupID` this blocks the group behind it.
+- The same shape arises for an async retry that hits `ErrIdempotency`.
+- **Test gap:** only the synchronous cross-owner case is covered (`integration/framework_flow_test.go:213-217`).
+- **Needed assertion:** async cross-owner `set` is either rejected before enqueue, or the worker acks it as a recorded terminal rejection and a following valid message still commits.
+- **Fix direction:** classify deterministic rejections (`ErrInvalid`, `ErrIdempotency`, `ErrConflict`, forbidden) as terminal in `Consumer`, with an explicit rejection hook.
+
+**2. `Scope.OwnerAny` fails open for a principal with zero groups.**
+- `owns` skips the any-of check when `len(s.OwnerAny) == 0` (`view/store.go:84`), and `validate` accepts that whenever `Owner` is nonempty (`store.go:60`).
+- JS fails closed: an empty `principalGroups` array is truthy and yields `$in: []` (`toolbox/packages/procedures/view_stores/generic/get/index.js:84-111`).
+- `copyScope` turns an empty non-nil slice into nil (`view/composite.go:140`), so a nil-versus-empty fix would not survive the gateway.
+- **Scenario:** a composition sets `Owner` to the tenant and maps the principal's groups to `OwnerAny`. A user in no groups then lists every row in the tenant.
+- No production composition uses `OwnerAny` yet; this blocks the group-scoping capability claim.
+- **Needed assertion:** a scope that requires group membership with zero groups returns Total 0 from `List`, NotFound from `Get`, and selects nothing in `MutateWhere`. This needs an explicit field or constructor, not slice nil-ness.
+
+**3. `MutateWhere` writes into the row's single source-version fence, so later real projections are dropped silently.**
+- The builder must supply a `Version` above the current one or the write is a no-op (`view/store.go:222-224`).
+- The only demonstrated usage is `Version: p.Version + 1` (`view/selection_test.go:66`), and the README calls it "a source Version" (`view/README.md:236-237`).
+- **Scenario:** a row is at source version 0 and `MutateWhere` bumps it to 1. The aggregate's real event number 1 then arrives, `Engine.Play` emits `Version: 1`, and it is treated as stale: not applied, acked, no push.
+- No non-test caller exists; this blocks the claim that query-addressed JS writes are preserved.
+- **Needed assertion:** `MutateWhere` on a row, then `Engine.Play` for the next source event, leaves the row reflecting that event.
+- **Fix direction:** keep selection writes out of the source-version space, or restrict `MutateWhere` to mutations whose version comes from the same source root.
+
+## P2: gaps and decisions
+
+**4. Replay run identity is static, so a repeated replay can be a silent no-op.**
+- The replay route takes only `after` and `limit` (`transport/projection_routes.go:44-47`). `RunID` is fixed on the producer from `REPLAY_RUN_ID` (`cli/delivery_config.go:80`).
+- Envelope identity is content-derived, and Tasks `AlreadyExists` counts as success (`delivery/tasks.go:43-45`). `Scheduler.Replay` therefore counts it as enqueued (`projection/replay.go:123-127`).
+- **Scenario:** fix a handler and replay again under the same `RunID` within the provider's dedup window. The response reports `Enqueued=n`, but no work runs. SQS FIFO behaves the same way; standard SQS does not.
+- **Needed assertion:** two replay requests through the route against a deduplicating mailbox both produce dispatches, or the second fails loudly.
+
+**5. `CommandClient` has no production credential path.**
+- `Authorize` must return target credentials (`transport/command_client.go:23,55`), but `command.Request` carries no raw token.
+- I found no non-test code that signs a `kind:"service"` token.
+- The integration test calls `nested.Execute` from the test body with the user's session token in scope (`framework_flow_test.go:224-235`). serviceapp composes no nested command.
+- **Needed:** a delegated service-token minter in an existing owner, and one serviceapp command that calls the second service from inside `Main`.
+- **Needed assertion:** the child event carries the parent's `Transaction.ID` and trace path plus the delegated principal context, and a parent retry yields child DUPLICATE.
+
+**6. `/deliveries` falls back to the internal peer verifier.**
+- `DeliveryVerifier` defaults to `Internal` (`serviceapp/app.go:157-160`).
+- `/events` overwrites context and claims from the caller (`transport/framework.go:194-204`), but a command envelope is appended with its body context (`delivery/consume.go:48-49`).
+- A peer credential that cannot forge a principal through `/events` can therefore do so through `/deliveries`. The integration test uses the same `peer` token for both (`framework_flow_test.go:295`).
+- **Fix direction:** require an explicit delivery verifier with its own subject whenever `Queue` or a remote `Publisher` is set, and assert the store-peer token gets 401 there.
+
+**7. Check these when the executable is ready.**
+- The delivery handler does not drain the outbox after a worker commit (`delivery/consume.go:109-117`); the test calls `Store.Deliver` by hand (`framework_flow_test.go:315`). The executable needs `runtimepub.Run` on the document store.
+- serviceapp mounts `/identity/views/session` (`app.go:168`, `transport/http.go:132-150`) but composes no `SessionProjection` and no identity-store delivery. A non-local identity store would accumulate publications, and that view would return 404.
+
+## P3: minor
+
+- **204 with a body:** the command route calls `write` with status 204 and a JSON body (`transport/http.go:42-52`, `framework.go:131`). I expect net/http to reject the body write and log a second header attempt; the client still sees 204.
+- **Job claims test does not discriminate:** the job only checks claims are nonempty (`serviceapp/document.go:165`), and the forged body claims are also nonempty (`framework_flow_test.go:199`). Assert the subject equals the token's.
+- **Replay without a producer:** a remote store with nil `Replay` fails per request, not at construction (`app.go:130-134`).
+- **Command ID namespace:** event keys derive from the client-supplied ID alone (`command/command.go:206`), so one principal can squat another's predictable ID and force a 409.
+- **Stream deadline:** `wrap` imposes a fixed 30 seconds on every route, including the fact, aggregate and composite streams (`http.go:55`).
+
+## Earlier findings checked
+
+| Earlier finding | Status |
+| --- | --- |
+| 3, `Then` contract | Resolved. All outcomes are passed in order and cloned (`command/command.go:260-281`), with tests for duplicate, mixed, empty and queued cases. |
+| 4, fingerprint | Resolved. Only `exp/iat/nbf/jti` are dropped (`eventstore/fingerprint.go:21`); the hash keeps full claims (`store.go:190-191`). `dia.Claims` has exactly eight fields (`dia/auth.go:25-34,141`), so no other lifetime field exists. |
+| 4, residual | `Transaction.Path` stays in the fingerprint, so `Procedure.Trace` must be stable across deploys. |
+| 8, job claims | Resolved in source (`framework.go:176-177`, `job/job.go:68-69`). |
+| KMS signing | Resolved in source. `Sign` verifies the signature against the pinned `VerifyKey` before returning (`dia/auth.go:91-93`), so a mismatched KMS key fails closed. No live KMS evidence. |
+| 1 and 2, composition | serviceapp runs the generic command, fact, job, projection and view owners with Dia auth. The cookie gateway, fact proxy, upload gateway and `MutateWhere` remain library-only. |
+| 6, shared-backend aliasing | Resolved by `PhysicalID` naming (`view/namespace.go`). |
+| 7, cookie surface | No blocker found in `CookiePolicy`: exact origin, double-submit CSRF and `__Host-` cookies. |
+
+## Deliberate redesigns to record, not defects
+
+- The queue carries prepared events, so `Main` decides at submit time and is not rerun by the worker. JS re-executed the command.
+- Projection handlers receive the latest aggregate state, with the trigger's action possibly older than that state.
+- Text search is a literal substring match and sort is bytewise, both documented.
+
+## Reviewed and limits
+
+- **Read in full:** `eventstore/{fingerprint,store,protocol}.go`, `command/command.go`, `job/job.go`, `delivery/*.go`, `projection/{projection,play,replay,publication}.go`, `view/{store,query,query_values,selection,namespace,composite}.go`, `transport/{framework,command_client,auth,gateway_cookie,gateway_proxy,upload,http,view_gateway,projection_routes,store_routes}.go`, `dia/{auth,signing}.go`, `runtimeauth/signing.go`, `runtimepub/worker.go`, `serviceapp/*.go`, `integration/framework_flow_test.go`, and the package READMEs for command, delivery and view.
+- **Not reviewed:** `cmd/framework`, `runtimequeue` and `runtimeenv` as instructed; storage adapter internals; cloud adapters; `view/mutation.go` operations; most test files; the CLI.
+- **JS comparison:** limited to generic get group and query handling. The `view_store_mutations` source was not at the path the original report cited, so finding 3 rests on the Go contract alone.
+- **Provider behaviour:** the dedup claim in finding 4 is from my knowledge of Cloud Tasks and SQS FIFO, not from a live check.

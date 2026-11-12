@@ -1,0 +1,83 @@
+{
+  "name": "blossm-go-native",
+  "services": {
+    "postgres": {
+      "image": "postgres:17.6-bookworm@sha256:f3bd19c606e442c3d7bdfa8002e03fe260a1023351e0ea4598032022b68dd6e3",
+      "environment": {
+        "POSTGRES_USER": "postgres",
+        "POSTGRES_PASSWORD": "postgres",
+        "POSTGRES_DB": "blossm"
+      },
+      "ports": [
+        "127.0.0.1:5432:5432"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d blossm"
+        ],
+        "interval": "2s",
+        "timeout": "2s",
+        "retries": 30
+      },
+      "tmpfs": [
+        "/var/lib/postgresql/data"
+      ]
+    },
+    "mongo": {
+      "image": "mongo:8.0.34@sha256:b9924c330a8bbc5800fe9c69f04a84e221eca7b28fd049a0354147d9908fa142",
+      "command": [
+        "mongod",
+        "--replSet",
+        "rs0",
+        "--bind_ip_all",
+        "--setParameter",
+        "enableTestCommands=1"
+      ],
+      "ports": [
+        "127.0.0.1:27017:27017"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "mongosh",
+          "--quiet",
+          "--eval",
+          "quit(db.adminCommand({ping:1}).ok ? 0 : 1)"
+        ],
+        "interval": "2s",
+        "timeout": "5s",
+        "retries": 30
+      },
+      "tmpfs": [
+        "/data/db"
+      ]
+    },
+    "redis": {
+      "image": "redis:7.4.7@sha256:976ab0f0939b78c06d802bcd3bea44c5142ea9a756a57b861e08819817f768c8",
+      "command": [
+        "redis-server",
+        "--save",
+        "",
+        "--appendonly",
+        "no"
+      ],
+      "ports": [
+        "127.0.0.1:6379:6379"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "redis-cli",
+          "ping"
+        ],
+        "interval": "2s",
+        "timeout": "2s",
+        "retries": 30
+      },
+      "tmpfs": [
+        "/data"
+      ]
+    }
+  }
+}

@@ -1,0 +1,1 @@
+Historical verification before the independent framework-composition review. These 753/927 passing-result totals do not describe the final remediated tree. The adjacent machine file and compressed raw logs preserve that checkpoint. Current evidence is in ../VERIFICATION.md.

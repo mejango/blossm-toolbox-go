@@ -1,0 +1,9 @@
+=== RUN   TestReviewRefreshRetry
+    claude_review_test.go:19: same request after refreshed claims: idempotency key reused with different content
+--- FAIL: TestReviewRefreshRetry (0.00s)
+=== RUN   TestReviewCallbackRetryResponse
+    claude_review_test.go:35: retry lost callback response: first=1 retry=null
+--- FAIL: TestReviewCallbackRetryResponse (0.00s)
+FAIL
+FAIL	blossm.local/backend/command	0.344s
+FAIL

@@ -1,0 +1,24 @@
+{
+  "subtype": "success",
+  "is_error": false,
+  "duration_ms": 312766,
+  "num_turns": 85,
+  "modelUsage": {
+    "claude-fable-5-2": {
+      "inputTokens": 40,
+      "outputTokens": 29951,
+      "cacheReadInputTokens": 2105838,
+      "cacheCreationInputTokens": 191282,
+      "webSearchRequests": 0,
+      "costUSD": 4.6800396,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 18901,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 191282,
+      "canonicalModel": "claude-fable-5-2",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  }
+}

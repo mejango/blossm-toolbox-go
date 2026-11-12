@@ -1,0 +1,439 @@
+{
+  "date": "2026-11-12",
+  "toolchain": "go1.27.4",
+  "live_environment_verified": false,
+  "suites": {
+    "unit": {
+      "passed_test_and_subtest_results": 753,
+      "failed_tests": 0,
+      "skipped_tests": 0,
+      "packages": [
+        {
+          "Package": "blossm.local/backend/audit",
+          "Action": "pass",
+          "Elapsed": 0.274
+        },
+        {
+          "Package": "blossm.local/backend/cloud/aws",
+          "Action": "pass",
+          "Elapsed": 0.546
+        },
+        {
+          "Package": "blossm.local/backend/cli",
+          "Action": "pass",
+          "Elapsed": 2.76
+        },
+        {
+          "Package": "blossm.local/backend/cmd/blossm",
+          "Action": "skip",
+          "Elapsed": 0
+        },
+        {
+          "Package": "blossm.local/backend/command",
+          "Action": "pass",
+          "Elapsed": 0.711
+        },
+        {
+          "Package": "blossm.local/backend/cryptography",
+          "Action": "pass",
+          "Elapsed": 0.89
+        },
+        {
+          "Package": "blossm.local/backend/cmd/dia",
+          "Action": "pass",
+          "Elapsed": 1.185
+        },
+        {
+          "Package": "blossm.local/backend/evm",
+          "Action": "pass",
+          "Elapsed": 1.71
+        },
+        {
+          "Package": "blossm.local/backend/eventstore",
+          "Action": "pass",
+          "Elapsed": 1.795
+        },
+        {
+          "Package": "blossm.local/backend/cloud/gcp",
+          "Action": "pass",
+          "Elapsed": 1.8010000000000002
+        },
+        {
+          "Package": "blossm.local/backend/fact",
+          "Action": "pass",
+          "Elapsed": 2.059
+        },
+        {
+          "Package": "blossm.local/backend/integrations/chainpoint",
+          "Action": "pass",
+          "Elapsed": 2.21
+        },
+        {
+          "Package": "blossm.local/backend/integrations/dwolla",
+          "Action": "pass",
+          "Elapsed": 2.431
+        },
+        {
+          "Package": "blossm.local/backend/integrations/internal/httpwire",
+          "Action": "pass",
+          "Elapsed": 1.9489999999999998
+        },
+        {
+          "Package": "blossm.local/backend/integrations/redis",
+          "Action": "pass",
+          "Elapsed": 1.958
+        },
+        {
+          "Package": "blossm.local/backend/job",
+          "Action": "pass",
+          "Elapsed": 1.891
+        },
+        {
+          "Package": "blossm.local/backend/projection",
+          "Action": "pass",
+          "Elapsed": 1.554
+        },
+        {
+          "Package": "blossm.local/backend/storage/internal/queryindex",
+          "Action": "pass",
+          "Elapsed": 1.947
+        },
+        {
+          "Package": "blossm.local/backend/rpc",
+          "Action": "pass",
+          "Elapsed": 2.213
+        },
+        {
+          "Package": "blossm.local/backend/storage/mongo",
+          "Action": "pass",
+          "Elapsed": 2.039
+        },
+        {
+          "Package": "blossm.local/backend/runtimepub",
+          "Action": "pass",
+          "Elapsed": 2.48
+        },
+        {
+          "Package": "blossm.local/backend/storage/postgres",
+          "Action": "pass",
+          "Elapsed": 2.055
+        },
+        {
+          "Package": "blossm.local/backend/transport",
+          "Action": "pass",
+          "Elapsed": 2.071
+        },
+        {
+          "Package": "blossm.local/backend/wallet",
+          "Action": "pass",
+          "Elapsed": 2.083
+        },
+        {
+          "Package": "blossm.local/backend/dia",
+          "Action": "pass",
+          "Elapsed": 5.189
+        },
+        {
+          "Package": "blossm.local/backend/view",
+          "Action": "pass",
+          "Elapsed": 2.426
+        }
+      ],
+      "raw_log_sha256": "0474ce0cb6c00346fec77b1bd426bfc61a7565b7ee4b05929f75980ed6444749",
+      "raw_log": "verification-logs/unit.jsonl.gz"
+    },
+    "race": {
+      "passed_test_and_subtest_results": 753,
+      "failed_tests": 0,
+      "skipped_tests": 0,
+      "packages": [
+        {
+          "Package": "blossm.local/backend/audit",
+          "Action": "pass",
+          "Elapsed": 1.276
+        },
+        {
+          "Package": "blossm.local/backend/cloud/aws",
+          "Action": "pass",
+          "Elapsed": 1.5819999999999999
+        },
+        {
+          "Package": "blossm.local/backend/cmd/blossm",
+          "Action": "skip",
+          "Elapsed": 0
+        },
+        {
+          "Package": "blossm.local/backend/cli",
+          "Action": "pass",
+          "Elapsed": 4.063
+        },
+        {
+          "Package": "blossm.local/backend/cloud/gcp",
+          "Action": "pass",
+          "Elapsed": 3.192
+        },
+        {
+          "Package": "blossm.local/backend/cmd/dia",
+          "Action": "pass",
+          "Elapsed": 1.443
+        },
+        {
+          "Package": "blossm.local/backend/integrations/chainpoint",
+          "Action": "pass",
+          "Elapsed": 1.638
+        },
+        {
+          "Package": "blossm.local/backend/command",
+          "Action": "pass",
+          "Elapsed": 2.11
+        },
+        {
+          "Package": "blossm.local/backend/integrations/dwolla",
+          "Action": "pass",
+          "Elapsed": 2.309
+        },
+        {
+          "Package": "blossm.local/backend/eventstore",
+          "Action": "pass",
+          "Elapsed": 2.923
+        },
+        {
+          "Package": "blossm.local/backend/evm",
+          "Action": "pass",
+          "Elapsed": 3.117
+        },
+        {
+          "Package": "blossm.local/backend/fact",
+          "Action": "pass",
+          "Elapsed": 3.156
+        },
+        {
+          "Package": "blossm.local/backend/cryptography",
+          "Action": "pass",
+          "Elapsed": 3.349
+        },
+        {
+          "Package": "blossm.local/backend/integrations/internal/httpwire",
+          "Action": "pass",
+          "Elapsed": 3.301
+        },
+        {
+          "Package": "blossm.local/backend/integrations/redis",
+          "Action": "pass",
+          "Elapsed": 2.871
+        },
+        {
+          "Package": "blossm.local/backend/job",
+          "Action": "pass",
+          "Elapsed": 2.964
+        },
+        {
+          "Package": "blossm.local/backend/projection",
+          "Action": "pass",
+          "Elapsed": 2.727
+        },
+        {
+          "Package": "blossm.local/backend/rpc",
+          "Action": "pass",
+          "Elapsed": 3.3
+        },
+        {
+          "Package": "blossm.local/backend/storage/internal/queryindex",
+          "Action": "pass",
+          "Elapsed": 2.592
+        },
+        {
+          "Package": "blossm.local/backend/storage/mongo",
+          "Action": "pass",
+          "Elapsed": 2.824
+        },
+        {
+          "Package": "blossm.local/backend/storage/postgres",
+          "Action": "pass",
+          "Elapsed": 2.8890000000000002
+        },
+        {
+          "Package": "blossm.local/backend/transport",
+          "Action": "pass",
+          "Elapsed": 2.448
+        },
+        {
+          "Package": "blossm.local/backend/wallet",
+          "Action": "pass",
+          "Elapsed": 2.63
+        },
+        {
+          "Package": "blossm.local/backend/runtimepub",
+          "Action": "pass",
+          "Elapsed": 4.35
+        },
+        {
+          "Package": "blossm.local/backend/view",
+          "Action": "pass",
+          "Elapsed": 8.981
+        },
+        {
+          "Package": "blossm.local/backend/dia",
+          "Action": "pass",
+          "Elapsed": 64.991
+        }
+      ],
+      "raw_log_sha256": "691086379789e848ab184ef6c11b58bf53f1211cad328dc2ea66b88e6c99795a",
+      "raw_log": "verification-logs/race.jsonl.gz"
+    },
+    "native": {
+      "passed_test_and_subtest_results": 927,
+      "failed_tests": 0,
+      "skipped_tests": 0,
+      "packages": [
+        {
+          "Package": "blossm.local/backend/audit",
+          "Action": "pass",
+          "Elapsed": 1.241
+        },
+        {
+          "Package": "blossm.local/backend/cli",
+          "Action": "pass",
+          "Elapsed": 3.901
+        },
+        {
+          "Package": "blossm.local/backend/cloud/aws",
+          "Action": "pass",
+          "Elapsed": 1.5390000000000001
+        },
+        {
+          "Package": "blossm.local/backend/cloud/gcp",
+          "Action": "pass",
+          "Elapsed": 4.938
+        },
+        {
+          "Package": "blossm.local/backend/cmd/blossm",
+          "Action": "skip",
+          "Elapsed": 0
+        },
+        {
+          "Package": "blossm.local/backend/cmd/dia",
+          "Action": "pass",
+          "Elapsed": 3.627
+        },
+        {
+          "Package": "blossm.local/backend/command",
+          "Action": "pass",
+          "Elapsed": 2.632
+        },
+        {
+          "Package": "blossm.local/backend/cryptography",
+          "Action": "pass",
+          "Elapsed": 1.2810000000000001
+        },
+        {
+          "Package": "blossm.local/backend/dia",
+          "Action": "pass",
+          "Elapsed": 76.288
+        },
+        {
+          "Package": "blossm.local/backend/eventstore",
+          "Action": "pass",
+          "Elapsed": 1.225
+        },
+        {
+          "Package": "blossm.local/backend/evm",
+          "Action": "pass",
+          "Elapsed": 1.596
+        },
+        {
+          "Package": "blossm.local/backend/fact",
+          "Action": "pass",
+          "Elapsed": 1.29
+        },
+        {
+          "Package": "blossm.local/backend/integration",
+          "Action": "pass",
+          "Elapsed": 7.499
+        },
+        {
+          "Package": "blossm.local/backend/integrations/chainpoint",
+          "Action": "pass",
+          "Elapsed": 1.206
+        },
+        {
+          "Package": "blossm.local/backend/integrations/dwolla",
+          "Action": "pass",
+          "Elapsed": 1.201
+        },
+        {
+          "Package": "blossm.local/backend/integrations/internal/httpwire",
+          "Action": "pass",
+          "Elapsed": 1.233
+        },
+        {
+          "Package": "blossm.local/backend/integrations/redis",
+          "Action": "pass",
+          "Elapsed": 1.182
+        },
+        {
+          "Package": "blossm.local/backend/job",
+          "Action": "pass",
+          "Elapsed": 1.213
+        },
+        {
+          "Package": "blossm.local/backend/projection",
+          "Action": "pass",
+          "Elapsed": 2.73
+        },
+        {
+          "Package": "blossm.local/backend/rpc",
+          "Action": "pass",
+          "Elapsed": 1.7389999999999999
+        },
+        {
+          "Package": "blossm.local/backend/runtimepub",
+          "Action": "pass",
+          "Elapsed": 2.576
+        },
+        {
+          "Package": "blossm.local/backend/storage/internal/frontiertest",
+          "Action": "skip",
+          "Elapsed": 0
+        },
+        {
+          "Package": "blossm.local/backend/storage/internal/queryindex",
+          "Action": "pass",
+          "Elapsed": 1.177
+        },
+        {
+          "Package": "blossm.local/backend/storage/internal/querytest",
+          "Action": "skip",
+          "Elapsed": 0
+        },
+        {
+          "Package": "blossm.local/backend/storage/mongo",
+          "Action": "pass",
+          "Elapsed": 67.836
+        },
+        {
+          "Package": "blossm.local/backend/storage/postgres",
+          "Action": "pass",
+          "Elapsed": 14.87
+        },
+        {
+          "Package": "blossm.local/backend/transport",
+          "Action": "pass",
+          "Elapsed": 8.968
+        },
+        {
+          "Package": "blossm.local/backend/view",
+          "Action": "pass",
+          "Elapsed": 7.532
+        },
+        {
+          "Package": "blossm.local/backend/wallet",
+          "Action": "pass",
+          "Elapsed": 15.04
+        }
+      ],
+      "raw_log_sha256": "0e4dc9138eb4d6f2edde0bb3e994d1afb879058a4e5d10fe948ae082435d16e9",
+      "raw_log": "verification-logs/native.jsonl.gz"
+    }
+  }
+}

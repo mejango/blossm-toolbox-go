@@ -1,0 +1,7 @@
+# Host-built binaries are not inputs to the container's source build.
+/bin/blossm
+/bin/dia
+/bin/framework
+
+# Default generated deployment plans are not image inputs.
+/deploy/generated/

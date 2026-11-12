@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "runtime": "dia",
+  "signing": {
+    "provider": "local"
+  },
+  "name": "dia-api",
+  "network": "example.test",
+  "provider": "gcp",
+  "image": "example.invalid/blossm/dia:review-required",
+  "port": 8080,
+  "local": false,
+  "database": {
+    "driver": "postgres",
+    "namespace": "blossm",
+    "secret": {
+      "reference": "dia-database",
+      "version": "1"
+    }
+  },
+  "publication": {
+    "topic": "projects/example-project/topics/dia-events",
+    "subscription": "projects/example-project/subscriptions/dia-projection"
+  },
+  "secrets": {
+    "DIA_ENCRYPTION_KEY": {
+      "reference": "dia-encryption-key",
+      "version": "1"
+    },
+    "DIA_HMAC_KEY": {
+      "reference": "dia-hmac-key",
+      "version": "1"
+    },
+    "JWT_PRIVATE_KEY": {
+      "reference": "dia-jwt-private-key",
+      "version": "1"
+    }
+  },
+  "gcp": {
+    "project": "example-project",
+    "region": "us-central1",
+    "serviceAccount": "dia-api@example-project.iam.gserviceaccount.com",
+    "invocation": "application"
+  }
+}

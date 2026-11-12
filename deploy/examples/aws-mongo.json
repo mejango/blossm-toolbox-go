@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "runtime": "dia",
+  "signing": {
+    "provider": "local"
+  },
+  "name": "dia-api",
+  "network": "example.test",
+  "provider": "aws",
+  "image": "example.invalid/blossm/dia:review-required",
+  "port": 8080,
+  "local": false,
+  "database": {
+    "driver": "mongo",
+    "namespace": "blossm",
+    "secret": {
+      "reference": "arn:aws:secretsmanager:us-east-1:123456789012:secret:dia-database-AbCdEf"
+    }
+  },
+  "publication": {
+    "topic": "arn:aws:sns:us-east-1:123456789012:dia-events",
+    "queueURL": "https://sqs.us-east-1.amazonaws.com/123456789012/dia-projection",
+    "queueARN": "arn:aws:sqs:us-east-1:123456789012:dia-projection",
+    "rawMessageDelivery": true,
+    "maximumMessageSize": 262144
+  },
+  "secrets": {
+    "DIA_ENCRYPTION_KEY": {
+      "reference": "arn:aws:secretsmanager:us-east-1:123456789012:secret:dia-encryption-key-AbCdEf"
+    },
+    "DIA_HMAC_KEY": {
+      "reference": "arn:aws:secretsmanager:us-east-1:123456789012:secret:dia-hmac-key-AbCdEf"
+    },
+    "JWT_PRIVATE_KEY": {
+      "reference": "arn:aws:secretsmanager:us-east-1:123456789012:secret:dia-jwt-private-key-AbCdEf"
+    }
+  },
+  "aws": {
+    "region": "us-east-1",
+    "cluster": "blossm-cluster",
+    "executionRole": "arn:aws:iam::123456789012:role/dia-execution",
+    "taskRole": "arn:aws:iam::123456789012:role/dia-runtime",
+    "subnets": [
+      "subnet-0123456789abcdef0"
+    ],
+    "securityGroups": [
+      "sg-0123456789abcdef0"
+    ],
+    "logGroup": "/ecs/dia-api",
+    "targetGroupARN": "arn:aws:elasticloadbalancing:us-east-1:123456789012:targetgroup/dia-api/0123456789abcdef"
+  }
+}

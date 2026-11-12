@@ -1,0 +1,36 @@
+## Verdict
+
+No blocker in these deltas. The fourth review's IAM-mode P2 and the listed P3 items are closed in source. One of your stated premises does not hold: the root plan does not record the fourth-review corrections (details under "Not confirmed"). Everything here is from reading source; I ran nothing.
+
+## Closures
+
+| Item | Status | Source | Guard |
+| --- | --- | --- | --- |
+| 1. Framework `iam` rejected | Closed | `blossm-go/cli/config.go:249-251` rejects it as unverified forwarding, with no stripping claim. | `blossm-go/cli/runtime_test.go:244-259` covers framework `iam` rejected, framework `application` accepted and Dia `iam` accepted. |
+| 1. Docs and examples | Closed | `blossm-go/deploy/README.md:247-267` says "conservatively unsupported, not proven universally broken". `blossm-go/cli/README.md:228-234` matches. | Both GCP examples select `application`. The `iam` REVIEW note at `blossm-go/cli/plan.go:74` is now reachable only for Dia and still requires the authenticating edge. |
+| 2. Operation URL boundary | Closed | `blossm-go/cli/workflows.go:144-159` allows HTTP only for `localhost` or a literal loopback IP. The bearer is read at `:192`, after all validation. | `blossm-go/cli/replay_test.go:60-83` covers the positive loopback forms and eleven negative cases, each failing the test if credentials are read. |
+| 2. Mint to loopback replay | Closed | `blossm-go/cli/internal_token_test.go:133,162-163` drives a real `Run` mint through a plain `httptest.NewServer` `serviceapp` handler. | Valid case asserts the ack and one enqueued root; the other two cases assert 401 with nothing enqueued. |
+| 2. DLQ prerequisite | Closed | `blossm-go/cli/plan.go:36` ends with "This plan does not provision a DLQ or redrive policy". | `blossm-go/cli/runtime_test.go:226-242`, both providers. |
+| 3. JSON runtime logger | Closed | `blossm-go/cmd/framework/rejection_log.go:11-13`, used at `blossm-go/cmd/framework/main.go:52-53`. | `blossm-go/cmd/framework/rejection_log_test.go:15` uses the same constructor and asserts exactly five fields. |
+| 3. HTTP-path observer | Closed | `blossm-go/integration/framework_flow_test.go:357-361` configures a counter plus a failing observer. | `:479-486` asserts one notice, none on the duplicate, and 204 both times. `:487-494` and `:525` keep the authorized lookup and the user denial. |
+
+The `http://localhost:99999` negative case passes the URL check in `workflows.go` and is rejected by the port check in `rpc.New` (`blossm-go/rpc/client.go:58-61`). That still happens before the credential read, so the test's claim holds.
+
+Strict clock validation is documented at `blossm-go/cli/README.md:224-226`, and one trust domain per network at `blossm-go/docs/ARCHITECTURE.md:150`. I treated both as selected contracts.
+
+## Not confirmed
+
+- **Root plan:** `tasks/todo.md` ends at the "Third Fable review refinement" entry (line 4274). The fourth-review corrections are recorded only in `blossm-go/cli/tasks/todo.md:139-141`, `blossm-go/cmd/framework/tasks/todo.md:43-45` and `blossm-go/docs/capabilities.md:738-748`. If the root plan is meant to cover them, it needs one entry.
+
+## Minor, non-blocking
+
+- **Stale closure wording:** `blossm-go/docs/reviews/fable-2026-11-12/closure.md:26` still says "TLS serviceapp replay"; the test is now plain loopback HTTP. Line 28 does not mention the framework `iam` rejection.
+- **`wrong-audience` label:** `internal_token_test.go:146-147` still changes the network, so the issuer fails first. This is the prior P3, unchanged.
+- **Fatal line is not JSON:** `cmd/framework/main.go:208` uses the default `slog` text handler for "framework stopped". The package plan says this was left alone deliberately.
+- **`main.go:53` wiring is ungated:** the integration test proves the `serviceapp` to delivery path, but nothing I read fails if `main.go` drops `OnRejected`. I did not open `main_test.go`.
+
+## Limits
+
+- **Not re-read:** the `/deliveries` handler's handling of the observer error. The third review read it at `delivery/consume.go:172-185`; the 204 assertion now gates it only when the integration suite runs.
+- **Provider behaviour:** the `iam` rejection is a conservative guard. I made no external calls and did not check the Google documentation links.
+- **Scope:** I did not review unchanged domain, storage or SDK code beyond the `rpc.New` port check and its redirect setting.

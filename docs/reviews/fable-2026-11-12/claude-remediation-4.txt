@@ -1,0 +1,47 @@
+## Verdict
+
+No blocker found. The third review's P1 and both P2 items are closed in source with assertions that exercise the behaviour. One new P2 needs a decision before anyone selects `iam` invocation for a framework service; it rests on provider behaviour I could not verify. Nothing was executed; everything below is from reading source, and no live deployment is claimed.
+
+## Closure of the third review
+
+| Item | Status | Source | Assertion |
+| --- | --- | --- | --- |
+| P1: internal token issuer | Closed | `cli/internal_token.go:50-68` reuses `runtimeauth.Open` and `JWT.Sign`; subject and audience come only from config; TTL 1s to 5m | `cli/internal_token_test.go:111-176`: a token minted by the real `Run` path drives `blossm replay` against a real `serviceapp.New` handler over TLS. The ack carries the run ID and one enqueued root. Wrong subject gets 401 with nothing enqueued |
+| Safe preparation | Closed | `internal_token.go:41-43` returns before any env read or signer open | `:65-83` fails if `Getenv` or `OpenJWT` is touched. `:238-257` shows a mismatched signer env or cancelled context never opens a signer, and failures print no token or provider text |
+| P2: rejection observability | Closed | `delivery/consume.go:95-97` fires only on a fresh, durably confirmed record, before ack | `delivery/observation_test.go:54-145`: observed then acked even when the observer errors, exactly one notice under 8 concurrent duplicates, none on uncertain commit. `native_test.go:190-223` repeats this on both databases |
+| Submitter envelope ID and inspection | Closed | `delivery/envelope.go:127-138`, `command/command.go:62-67,240`, `serviceapp/app.go:218-236` | `integration/framework_flow_test.go:392-395,462-482`: the ID in the HTTP command response equals the delivered envelope and resolves at `/delivery-rejections/{id}` with the internal token. `:513` denies a user token |
+| Minimal log fields, ACK unchanged | Closed | `cmd/framework/rejection_log.go:14`; `delivery/sqs.go:111-114` and `consume.go:172-185` ignore `ObservationError` | `rejection_log_test.go:24-33`: one record, exactly five fields, context canary absent |
+| P2: trust decision | Recorded, consistent | `docs/ARCHITECTURE.md:148-157`; one `jwt` backs all roles in `cmd/framework/main.go:30-54` | Nothing in the implementation contradicts the one-trust-domain decision |
+| Cloud Run invocation mode | Closed for `application` | `cli/config.go:246-248` requires it; `cli/plan.go:62,70-74` emits the service-level annotation and a REVIEW note | `cli/runtime_test.go:187-224`; both GCP examples select `application` |
+| Stream deadline, malformed body, doc drift | Documented | `ARCHITECTURE.md:159-166`, `deploy/README.md:75,114-122` | No config or plan claims DLQ provisioning (`plan.go:36`, `workflows.go:290-314`) |
+
+The SourceVersion native test does edit the source before the retry (`framework_flow_test.go:241-247`). The third review's P3 on key namespace after principal upgrade was outside this scope and not rechecked.
+
+## New P2: `iam` mode likely breaks `/deliveries`
+
+- **What the app does:** `/deliveries` re-validates the Cloud Tasks Google token's signature in the container (`runtimequeue/runtime.go:176-204`). Cloud Tasks sends that token in `Authorization`.
+- **What I expect from Cloud Run:** with Invoker IAM on, Cloud Run checks that same header and, from memory, forwards it with the signature replaced. This is unverified.
+- **Scenario:** a framework config with `gcp.invocation: "iam"` validates and generates a plan. Every queued command and replay then gets 401 at `/deliveries`, and Tasks retries indefinitely.
+- **Gap in the current guard:** the `iam` REVIEW note (`plan.go:73`) covers application-bearer clients only, not delivery.
+- **Fix:** check the official docs, then either reject `iam` for framework runtime with GCP delivery in `Validate`, or extend the REVIEW note. The checked examples are unaffected.
+
+## P3
+
+- **Log wiring is ungated:** no test fails if `serviceapp/app.go:99` or `cmd/framework/main.go:53` drops the callback. The integration app at `framework_flow_test.go:356` passes no `OnRejected`, and the HTTP path has no failing-observer case. One counter assertion in that flow would cover both.
+- **Runtime log is not JSON:** `cmd/framework/main.go:52` uses `slog.Default()`, which is the text handler. The test builds its own JSON handler, and `cmd/dia/main.go:33` sets JSON. The README's "structured warning" is only true after a one-line handler change.
+- **Zero clock leeway:** the token has `nbf = now` (`internal_token.go:68`) and verification allows no skew (`dia/auth.go:52`). An operator workstation one second ahead gets a 401 that looks like a wrong credential. The integration fixture backdates by one second (`framework_flow_test.go:87`).
+- **"wrong-audience" label:** that subtest changes the network, so the issuer changes too and rejection happens before the audience check. Audience-only mismatch is covered at the owner (`dia/auth_test.go:103`), and `capabilities.md:725` words it accurately.
+- **Local mode:** `blossm replay` requires HTTPS (`workflows.go:144`) and `internal-token` requires a valid deployment config. A loopback local process therefore needs a plain HTTP client with the minted token.
+- **DLQ prerequisite placement:** it appears in the architecture and package READMEs but not in the `Prepare` prerequisites operators review.
+
+## JS comparison
+
+- **Internal auth:** `vendors/gcp/token/test/index.js:33-43` asserts a metadata identity token with the Cloud Run URL as audience, so JS internal calls relied on platform IAM. Go's application JWT with an explicit mode is a deliberate replacement, which is why the `iam` case above matters.
+- **Queue dispatch:** `vendors/gcp/queue/test/index.js:79-98` asserts OIDC with the URL origin as audience. Go uses an explicit configured audience and verifies in the container.
+- **Local bypass:** `rpc/generic/test/index.js:99-140,208` asserts enqueue outside local and direct post in local. Go keeps this at `command/command.go:229`.
+- **No JS counterpart:** JS has no rejection journal, envelope ID or CLI token minting. Those Go assertions are fresh-system contracts, not parity evidence.
+
+## Limits
+
+- **Not read:** `cli/replay_test.go`, `cli/cli_test.go`, `runtimeauth/signing_test.go`, `cmd/framework/peers*.go`, cloud adapters, and the untouched storage, wallet and domain code.
+- **Not consulted:** gate results and the coverage ledger. No claim here depends on them.

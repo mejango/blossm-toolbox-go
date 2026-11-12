@@ -1,0 +1,10 @@
+go mod verify
+all modules verified
+go mod tidy -diff
+go test -mod=readonly ./cli -run 'TestArtifacts|TestStrictConfiguration|TestOfflineCLI|TestCheckedExamples|TestAWSPublicationSizing' -count=1
+ok  	blossm.local/backend/cli	0.715s
+go run -mod=readonly ./cmd/blossm validate --config deploy/examples/gcp-postgres.json
+Configuration valid; resource existence is unverified.
+go run -mod=readonly ./cmd/blossm validate --config deploy/examples/aws-mongo.json
+Configuration valid; resource existence is unverified.
+go run -mod=readonly ./cmd/blossm build

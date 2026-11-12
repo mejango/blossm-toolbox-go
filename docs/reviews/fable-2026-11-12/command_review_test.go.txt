@@ -1,0 +1,36 @@
+package command
+
+import (
+ "context"
+ "encoding/json"
+ "testing"
+ "blossm.local/backend/eventstore"
+)
+
+// Review probes assert proposed preserved behavior. They intentionally fail on
+// the reviewed implementation and are injected only by the explicit Go overlay.
+func TestReviewRefreshRetry(t *testing.T) {
+ p := basic()
+ in := req()
+ in.Claims = json.RawMessage(`{"sub":"owner","exp":2000000000,"jti":"old"}`)
+ if _, err := p.Execute(context.Background(), in); err != nil { t.Fatal(err) }
+ in.Claims = json.RawMessage(`{"sub":"owner","exp":2000003600,"jti":"new"}`)
+ out, err := p.Execute(context.Background(), in)
+ if err != nil { t.Fatalf("same request after refreshed claims: %v", err) }
+ if len(out.Receipts)!=1 || out.Receipts[0].Outcome!=eventstore.Duplicate { t.Fatal("retry did not recover duplicate") }
+}
+
+func TestReviewCallbackRetryResponse(t *testing.T) {
+ p := basic()
+ main := p.Main
+ p.Main = func(ctx context.Context, in Request)(Result,error) {
+  out,err := main(ctx,in)
+  out.AfterCommit = func(context.Context,[]eventstore.Receipt)(Contribution,error) {
+   return Contribution{Body:map[string]json.RawMessage{"value":json.RawMessage(`1`)}},nil
+  }
+  return out,err
+ }
+ first,err:=p.Execute(context.Background(),req());if err!=nil {t.Fatal(err)}
+ retry,err:=p.Execute(context.Background(),req());if err!=nil {t.Fatal(err)}
+ if string(first.Body["value"])!=string(retry.Body["value"]) {t.Fatalf("retry lost callback response: first=%s retry=%s",first.Body["value"],retry.Body["value"])}
+}

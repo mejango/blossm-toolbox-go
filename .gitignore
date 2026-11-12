@@ -1,0 +1,7 @@
+# CLI build outputs; keep other bin contents visible.
+/bin/blossm
+/bin/dia
+/bin/framework
+
+# Default offline deployment generator output; checked examples remain visible.
+/deploy/generated/

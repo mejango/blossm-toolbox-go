@@ -1,0 +1,84 @@
+## Verdict
+
+I found no correctness or data-loss blocker in the paths I traced, and the second-review fixes are closed in source. There is one blocker in the CLI/deploy contract: the internal service credential has no issuer, so replay and rejection inspection cannot be used outside tests. Nothing was executed; everything below is from source tracing.
+
+`serviceapp/document.go` changed while I was reading it (the copy command gained `sourceVersion` and a `History` read), so the source was not fully stable. Citations to that file are to the later version; all other files were read once.
+
+## P1: blocker
+
+**1. Nothing mints the internal service JWT, so replay, play and rejection inspection are unreachable in a deployed system.**
+- **What the server requires:** a Dia-key ES256 token with `kind:"service"`, `sub == INTERNAL_SUBJECT` and `aud == NETWORK` (`cmd/framework/main.go:35`, `transport/auth.go:285-298`, `dia/auth.go:141`).
+- **What it gates:** `/projections/documents/{play,replay}`, `/delivery-rejections/{id}` and the store peer routes (`serviceapp/app.go:165-186`, `:216-218`).
+- **Who can sign one:** the only non-test `kind:"service"` signer is the delegation minter (`transport/auth_delegated.go:64`). Its audience is `NETWORK/OUTBOUND_SERVICE`, so the internal verifier rejects it. `dia/service.go:196-204` signs only access, challenge and connection kinds.
+- **What the CLI offers:** `blossm replay` reads a bearer from the environment (`cli/workflows.go:176-191`). `blossm token` returns a Google identity token and says it "does not mint an application JWT" (`cli/token.go:46`). No Go route accepts that token.
+- **Why tests pass:** they sign with the fixture key directly (`integration/framework_flow_test.go:87`).
+- **Scenario:** a service runs with `JWT_SIGNER=gcp`. After a handler fix the operator needs to rebuild `documents`. The key is in KMS and no tool produces an accepted token. Local mode has the same problem, because play/replay is the only way the view gets populated there (`cmd/framework/README.md:31-33`).
+- **JS comparison:** internal calls used provider identity tokens (`packages/cli/blossm/src/command_gateway/deploy/src/index.js:28`, `internalTokenFn: gcpToken`).
+- **Fix:** one CLI subcommand that reuses `runtimeauth.Open` and `JWT.Sign`, with short expiry and subject/audience from config.
+- **Needed assertion:** a CLI-minted token drives `blossm replay` against a `serviceapp` handler to 200, and a wrong subject or audience gets 401.
+
+## P2: gaps and one decision
+
+**2. Terminal delivery rejections leave no operator-visible trace.**
+- The consumer records the rejection and returns it (`delivery/consume.go:62-89`). The SQS worker discards the result (`delivery/sqs.go:111`), and `runtimequeue.Run` logs only failures (`runtime.go:238-245`).
+- The HTTP handler sends the rejection only as response headers to Cloud Tasks (`consume.go:172-176`). The `delivery` package has no logging at all.
+- Inspection is lookup-by-ID only (`serviceapp/app.go:216-234`). The caller never receives the envelope ID: `Acceptance.ID` is a digest of it for Tasks, or the SQS MessageId (`delivery/tasks.go:35-44`, `sqs.go:48`).
+- **Scenario:** a user gets QUEUED for an async `set`. An ownership race makes the worker record `forbidden` and ACK. The command is dropped with no log line, no list, and no ID anyone can look up.
+- **Fix:** one WARN line with envelope ID and reason at the two ACK sites (both fields are non-sensitive by design), or return the envelope ID in `Acceptance`.
+- **Needed assertion:** a new rejection emits exactly one structured record, and the ID given to the submitter resolves at `/delivery-rejections/{id}`.
+
+**3. Decision needed: subject pinning is not a service boundary while every service shares one signing key.**
+- One `jwt` backs identity issuance, the internal verifier and both delegation ends (`cmd/framework/main.go:30,35,51,53`, `peers.go:22-37`).
+- Any framework process can therefore sign `sub: INTERNAL_SUBJECT` for another service and append through its `/events` with a context of its choosing, skipping the live-session check that delegation enforces.
+- JS used per-service provider identities for internal calls.
+- Either record "one network is one trust domain" in `ARCHITECTURE.md`, or give internal and peer credentials their own keys. I would record the trust domain now and split keys only when a second team owns a service.
+
+## P3: minor
+
+- **Key namespace shifts on principal upgrade:** `actorIdentity` prefers `context.principal` and otherwise uses claims (`command/command.go:347-370`). A command sent without a principal and retried after one is registered gets a new key and commits twice. serviceapp is unaffected, since every command there requires a principal.
+- **Malformed SQS body:** decoding fails before the rejection journal (`consume.go:37-40`) and the worker returns without ACK (`sqs.go:108-113`). A FIFO group stays blocked until redrive, and `blossm queue create` sets only `VisibilityTimeout` (`cli/workflows.go:290-308`). The README defers DLQ policy to the operator.
+- **Stream deadline still open:** `wrap` caps fact, root, aggregate and composite streams at 30 seconds (`transport/http.go:59`, `framework.go:92-93`). This was raised in the second review and is not in the fix list.
+- **Cloud Run auth (provider behaviour from memory, unverified):** the plan grants no public invoker (`cli/plan.go:62`). With the IAM invoker check on, I expect Cloud Run to reject Dia bearers in `Authorization` before the container sees them. The prerequisites should say which invocation mode the app's bearer scheme needs.
+- **Doc drift:** `deploy/README.md:73` says the Dockerfile builds two binaries; it builds three. Its local verification record (`:112-131`) describes a failed container build that the Dockerfile and `integration/container_test.go` have since superseded.
+
+## Previous findings
+
+| Second-review finding | Status | Source and assertion |
+| --- | --- | --- |
+| 1, queued poison | Closed | `delivery/consume.go:62-89`, `rejections.go:199-214`, pre-enqueue owner check `serviceapp/document.go:105-119`; `rejections_test.go:274-307`, `framework_flow_test.go:450-488` |
+| 2, `OwnerAny` fail-open | Closed in source | `view/store.go:24,92-93`; the bool survives `copyScope` (`composite.go:138-145`). `authority_fence_test.go` exists, not read. |
+| 3, `MutateWhere` fence | Closed | `view/selection.go:75,90-117`; `source_projection_native_test.go:56-72`. A selection write still stands in for that event's projection, as documented. |
+| 4, replay run identity | Closed | `projection_routes.go:108`, `delivery/envelope.go:46`, `projection/replay.go:73`, `cli/workflows.go:160`; `framework_flow_test.go:420-445` |
+| 5, delegated credential path | Closed | `auth_delegated.go:20-130`, `cmd/framework/peers.go`, `document.go:200-241`; `framework_flow_test.go:218-306`, `peers_test.go:47-135` |
+| 6, delivery verifier fallback | Closed | `serviceapp/app.go:67-68,208-215`, `runtimequeue/runtime.go:82,124,170-204`; `framework_flow_test.go:392-401` |
+| 7, outbox drain and identity projection | Closed | `cmd/framework/main.go:116-137` |
+| P3: 204 body, job claims, replay producer, command ID namespace | Closed | `http.go:44-47`, `document.go:182-186`, `app.go:177-179`, `command.go:205-213` with `actor_client_test.go:82-85` |
+
+Credential-scope checks I traced and found sound:
+- Access tokens fail internal routes on `kind`.
+- Delegated tokens fail internal routes on audience, and fail fact, job and view routes on kind (`app.go:118-125`).
+- Internal tokens fail the delegated verifier on its single exact audience (`auth_delegated.go:91`).
+- AWS mode denies HTTP delivery (`runtime.go:170-172`).
+- `eventstore.ErrConflict` as a terminal reason has no transient path for unconditioned queued commands: both adapters retry root-lock contention before a unique violation can surface.
+
+## Deliberate contracts, not defects
+
+- Local mode runs no automatic publication, matching JS (`packages/procedures/event_stores/generic/post/index.js:40`).
+- Queued commands carry prepared events; `Main` is not rerun by the worker.
+- Shutdown cancels in-flight requests at once (`cmd/framework/main.go:142`, `:190`); retries are safe by idempotency.
+- `copy` makes no cross-service transaction promise.
+- JB/shop and Relayr payments are tabled (`behavior-coverage.md:7,64`); I did not review them or count them as gaps.
+
+## Reviewed and limits
+
+- **Read in full:**
+  - `cmd/framework/*`, `runtimequeue/runtime.go`, `runtimeenv/env.go`, `runtimeauth/signing.go`, `runtimepub/{open,worker,gcp,aws,providers}.go`, `serviceapp/*`
+  - `delivery/{consume,rejections,envelope,sqs,tasks}.go`, `command/command.go`, `eventstore/store.go`
+  - `projection/{projection,play,replay,publication}.go`
+  - `transport/{framework,auth,auth_delegated,command_client,http,store_routes,projection_routes,view_gateway}.go`
+  - `view/{store,selection}.go`, storage write paths for both adapters, `dia/{auth,boundary}.go`
+  - `cli/{config,delivery_config,peers_config,plan,run,token,workflows}.go`, `Dockerfile`, the deploy and package READMEs
+  - Tests: `integration/{framework_flow,container}_test.go`, `delivery/rejections_test.go`, `command/actor_client_test.go`, the `cmd/framework` tests
+- **Not reviewed:** cloud adapters, storage read paths, `dia` domain bodies, wallet/EVM, gateway cookie/upload/proxy, `cli/scaffold.go`, view query internals, most other test files, `capabilities.json` beyond a sample.
+- **JS comparison:** limited to local-mode publication, `rpc/generic` enqueue and the command-gateway token source. I did not walk the Mocha suites; the coverage ledger's mappings are unverified apart from the tests named above.
+- **Gates:** the final gate results were not consulted, and no claim here depends on them.

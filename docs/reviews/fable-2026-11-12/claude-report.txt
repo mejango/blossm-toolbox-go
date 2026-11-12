@@ -1,0 +1,80 @@
+# Independent review: blossm-go vs Toolbox/Dia
+
+**Verdict:** I found no data-integrity blocker in the Dia paths I traced. Against your top priority there is a blocking gap: the generic procedure toolset exists only as library code and is not composed into any runnable service. Everything below is from source tracing; nothing was executed.
+
+## P0: toolset not preserved as a working system
+
+**1. The generic toolset is on no production path (observed).**
+- `cmd/dia` serves `transport.API` and a hard-coded `SessionProjection` (`blossm-go/cmd/dia/main.go:182`, `:202`), and its routes call `dia.Service` methods directly (`blossm-go/transport/routes.go:51-164`).
+- `transport.Framework{`, `command.Procedure{`, `fact.Procedure{`, `job.Procedure{` and `projection.Engine{` are constructed only in tests and in scaffold template strings (`blossm-go/cli/scaffold.go:22-41`).
+- JS Dia was the toolset's reference consumer, using nested `commandFn` and `readFactFn` (`dia/services/core/domains/session/commands/save/main.js:57,365`, `scene/commands/register/main.js:95`, `group/commands/remove_principals/main.js:43`).
+- Collapsing Dia into atomic multi-root batches is a deliberate redesign, but it leaves the framework with no application-level proof.
+- **Tests:** `Framework` is only tested with an event-less echo command (`blossm-go/transport/framework_test.go:31-36`) and store routes (`blossm-go/integration/store_test.go:357`). No test runs command, append, publication, projection play and view read together.
+- **Fix:** one native integration test hosting a small fixture service through `Framework`, `StoreClient`, the publication consumer, `projection.Engine` and `ViewGateway`. No new abstractions.
+
+**2. Service-interaction seams have no production adapter (observed).**
+- **Command queue:** `command.Queue` (`blossm-go/command/command.go:68`) has only a test fake. Nothing routes to `command.Consume` (`:293`). A remote `Async` command on a `Procedure` built like the scaffold's fails with "command queue not configured" (`:231-233`).
+- **Replay producer:** `projection.Producer` (`blossm-go/projection/replay.go:19`) has only test fakes.
+- **Publication to projection:** `projection.Trigger{` appears only in tests, so `Engine.Push` can never fire at runtime (`blossm-go/projection/projection.go:207-210`).
+- **Authorizers:** `Framework.Authorize`, `ViewGateway.Authorize` and `ProjectionRoutes.Resolve` have no implementation outside tests. The JS equivalent is the gateway authentication and authorization middleware (`packages/procedures/gateways/command/server/index.js:60-86`).
+- **Cloud and integrations:** no non-test file imports `cloud/gcp`, `cloud/aws`, `integrations/*`, `audit` or `cryptography`.
+- **Token signing:** Go uses a local PEM key (`blossm-go/cmd/dia/main.go:104-119`) and `dia.JWT.Key` is a concrete `*ecdsa.PrivateKey` (`blossm-go/dia/auth.go:36-41`). JS Dia signs through KMS (`dia/services/core/domains/session/commands/start/main.js:44-45`). `SignES256` exists in both cloud packages but has no seam to plug into.
+- **Ledger:** `@blossm/enqueue-operation` and `@blossm/command-rpc` are marked `implemented-source` while their own decision text says no worker routing (`blossm-go/docs/capabilities.json:1053`, `:1935`).
+- **Fix:** three thin adapters in existing owners (Tasks/SQS to `command.Queue` plus a consume route, the same for `projection.Producer`, and an `eventstore.Publisher` wrapping `Engine.Play`), a signer interface on `dia.JWT`, and one fixture test each.
+
+## P1: semantic defects and missing composition
+
+**3. The callback contract contradicts the recorded thenFn decision (observed).**
+- Go skips `AfterCommit` when there are no events (`blossm-go/command/command.go:221-229`), on the queued path (`:230-244`), and when all receipts are duplicates (`:271`). Mixed batches get fresh receipts only.
+- JS always calls `thenFn({outcomes})` with every status (`packages/procedures/command/post/index.js:218-241`; `test/outcomes.js:82-111`). `tasks/lessons.md` 2026-10-23 records your preference for passing authoritative outcomes to thenFn.
+- **Scenario:** a callback issues a token, the commit succeeds, the response is lost. The retry returns DUPLICATE without the callback's body, tokens or status.
+- **Tests:** `command_test.go:152-155` asserts only that the callback did not rerun; it never compares the replay response. `TestMixedBatchCallbackGetsOnlyFreshReceipts` (`:301`) pins the divergent behavior.
+- **Fix:** pass all receipts with outcomes in input order, including queued and empty, and let the callback decide. Otherwise record fresh-only as an explicit decision; it is not on your list.
+
+**4. Idempotency fingerprint includes token claims (traced, not executed).**
+- The fingerprint is `Digest` of the whole input including `Transaction.Claims` (`blossm-go/eventstore/store.go:150`, `protocol.go:34-39`).
+- `Framework` overwrites the claims from the caller identity (`blossm-go/transport/framework.go:112-114`, `:201`), and normalization expects `exp/iat/nbf` there (`store.go:82-89`).
+- **Scenario:** the same command ID is retried after a token refresh or service-token rotation. The fingerprint differs and the retry gets `ErrIdempotency` (409) instead of DUPLICATE (`store.go:171-173`).
+- Dia avoids this by stripping the transaction in its receipt digest (`blossm-go/dia/operation.go:38-48`); generic procedures have no such path.
+- **Test:** missing. Add a retry with the same request and different `exp`/`jti` through `Framework`.
+- **Fix:** exclude volatile claims from the fingerprint in `Append`, the single owner.
+
+**5. No nested-command toolset (missing capability).**
+- JS `mainFn` receives `aggregateFn`, `queryAggregatesFn`, `readFactFn`, `streamFactFn`, `commandFn`, `countFn` and `logEventsFn`, with context, claims, tx id/path and idempotency propagated (`packages/procedures/command/post/index.js:158-216`).
+- Go `Main` receives only `Request` (`blossm-go/command/command.go:121`), which has no `options` or `token`. Store, view, projection, fact and job clients exist, but there is no command client.
+- Event keys derive from `in.ID` and index only (`:205`), so a nested command that reuses the parent ID collides at index 0.
+- **Fix:** a `CommandClient` in `transport` mirroring `ProjectionClient`, deriving the child ID from parent ID plus name and forwarding `Transaction`. Test it across two `Framework` handlers.
+
+**6. View and projection expressiveness (deliberate redesign, plus one uncertainty).**
+- **Queries:** Go supports equality conjunction, ID order and offset only, and scans the full scope on every list (`blossm-go/view/query.go:15-19`, `:47-70`). JS has sort, text search, number/date markers, bootstrap, `emptyFn`, updates URL and next link (`packages/procedures/view_stores/generic/get/index.js:85-250`). CSV formatting has a Go owner (`blossm-go/view/format.go`), which I did not trace.
+- **Group scoping:** JS matches `headers.groups` against any of the principal's groups (`get/index.js:92-119`). Go `Scope.Owner` is scalar equalities only (`blossm-go/view/store.go:16-21`), so a principal in two or more groups cannot be scoped.
+- **Mutations:** Go is ID-addressed with one source root per row (`view/store.go:145`, `:214-216`). JS has query-addressed multi-row writes and deletes, array filters and multi-source handlers (`packages/lib/view_store_mutations/index.js:104-157`). `ARCHITECTURE.md:41` declares single-source; Dia's one view is unaffected.
+- **Uncertain:** projection IDs are global per backend (`blossm-go/storage/postgres/postgres.go:201`, `read.go:53`). Two view stores sharing a backend and row ID would silently drop the second write at the version fence (`view/store.go:218-220`). Nothing enforces or tests separation.
+- **Fix:** add sort and an "in" owner predicate, and either key rows by store name or reject shared backends in `ViewGateway.Handler`.
+
+## P2: needs your decision
+
+**7. Gateway auth surface.**
+- Go reads only the `Authorization` header (`blossm-go/transport/http.go:27-29`). JS sets and clears httpOnly cookies from `_tokens` and `_revoke` (`packages/procedures/gateways/command/post/index.js:63-86`).
+- `Contribution.Tokens` and `Revoke` exist (`blossm-go/command/command.go:75-76`), but nothing consumes them.
+- There is no basic/key protection mode and no multipart upload.
+- On the positive side, per-request session, scene and role checks (`blossm-go/dia/service.go:105-136`, `:144-173`) are stricter than the JS five-minute permission cache.
+
+**8. Jobs drop claims.** `blossm-go/transport/framework.go:176` forwards context only; JS forwards both (`packages/procedures/job/post/index.js:3-7`).
+
+## JS contracts without a meaningful Go equivalent
+
+| JS contract | Go status |
+| --- | --- |
+| `command/post/test/outcomes.js`, `then_fn.js` (empty outcomes, duplicate/queued visibility, `logEventsFn`, interleaved stores) | Absent or inverted (finding 3) |
+| `gateways/command/server/test` (protection modes, privileges, uploads before parsing) | No Go gateway composition |
+| `gateways/fact/get/test/composition.js` (header forwarding, upstream cancel on disconnect) | No proxying fact gateway; direct fact streaming is covered |
+| `view_stores/generic/get/test/{text_pagination,query_roundtrip}.js`, bootstrap/group cases | Capability absent |
+| `view_stores/generic/delete/test` ID/query tenant boundary; projection selection | ID-only model |
+| `rpc/command/test` (queue fn, cross-network); `rpc/event_stores/test/http.js` (merge-sorted multi-store) | No equivalent |
+
+Go's native event-store coverage on both databases (atomicity, concurrency, outbox restart, frontier, reducer immutability) looks at least as strong as the 26 JS Mongo tests.
+
+## Coverage limits
+
+Not reviewed in depth: wallet/EVM, storage adapter internals, the AWS consumer, CLI config and deploy generation, the Dia challenge/identity/system bodies, `capabilities.md` rows after 439, and the raw verification logs. Finding 4 and the shared-backend collision in finding 6 should be reproduced before fixing.
