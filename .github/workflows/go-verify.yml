@@ -7,7 +7,9 @@ permissions:
   contents: read
 jobs:
   verify:
-    runs-on: ubuntu-24.04
+    # MongoDB 8.0.34 requires a compatible kernel; current 22.04 uses Linux 6.8.
+    # See tasks/todo.md for the observed 24.04 failure and upstream compatibility.
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     defaults:
       run:

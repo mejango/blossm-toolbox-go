@@ -10,3 +10,12 @@
 - **Resource budget:** Reuse installed dependencies and existing native fixtures; avoid domain duplication or a broad package split. Source publication is explicitly authorized, deployment is not.
 
 - [ ] Verify and publish the standalone module and consumer.
+
+## CI runner refinement
+
+Initial public CI failed before tests because MongoDB 8.0.34 rejects the hosted
+Ubuntu 24.04 kernel. Keep the verified database pin and run on Ubuntu 22.04, whose
+current hosted image reports kernel 6.8.0-1070-azure. This changes the fixture host,
+not database semantics or test coverage. Verify the next complete GitHub run.
+Sources: https://jira.mongodb.org/browse/SERVER-125742 and
+https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md.
