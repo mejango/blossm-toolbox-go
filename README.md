@@ -10,15 +10,15 @@ Toolbox neither imports Dia nor ships its application executable.
 
 | Folder | Responsibility |
 | --- | --- |
-| `procedures/{command,fact,job,projection}` | Procedure execution, outcomes, replay and projection planning |
-| `stores/{event,view}` | Atomic events, replay, durable outbox and scoped versioned views |
-| `storage/{postgres,mongo}` | Native implementations of the shared storage protocol |
-| `transport`, `rpc`, `delivery` | Authenticated HTTP, clients, durable provider delivery |
-| `security/{authn,token,cryptography,audit}` | Generic errors, typed JWT/signing, codecs and private audit export |
-| `onchain/evm` | Ethereum encoding, signing and custody primitives, without application ownership policy |
-| `cloud/{gcp,aws}`, `integrations` | Provider SDK adapters and external services |
-| `runtime/{auth,env,publication,queue}` | Explicit infrastructure construction and lifecycle |
-| `cli`, `cmd/blossm`, `deploy` | Consumer scaffolding, project build/test and deployment preparation |
+| `lib/{event,canonical_json,query}` | Shared protocol, serialization and scalar query primitives |
+| `lib/{jwt,authentication_error,merkle_tree,rlp}` | Bottom-layer tokens/errors and cryptographic representations |
+| `rpc/generic`, `middleware/cors`, `onchain/evm` | Generic wire client, HTTP middleware and Ethereum primitives |
+| `vendors/{aws,gcp,postgres,mongodb,redis,dwolla,chainpoint}` | Explicit native/provider adapters |
+| `procedures/{command,fact,job,projection}` | Procedure execution, outcomes and projection planning |
+| `procedures/{event_stores,view_stores}` | Persistence/replay, remote clients, audit and scoped views |
+| `procedures/{gateways,server}` | HTTP composition and server infrastructure lifecycles |
+| `cli/blossm`, `cmd/blossm`, `deploy` | Consumer scaffolding, build/test delegation and resource preparation |
+| `tests` | Cross-package integration harnesses and shared crypto golden fixtures |
 
 Folders group cohesive Go packages; they do not create separately versioned
 modules. Applications choose their own typed JWT context and provide verified
@@ -41,8 +41,11 @@ make vuln container
 when required fixture configuration is missing. The image contains the Blossm
 CLI; application repositories build their own HTTP containers.
 
-See [architecture](docs/ARCHITECTURE.md), [capability inventory](docs/capabilities.md),
-[CLI](cli/README.md), [deployment](deploy/README.md) and
-[current verification](docs/SEPARATION.md) and [publication history](docs/PUBLICATION.md). Historical verification totals describe
+See [hierarchy](docs/HIERARCHY.md), [architecture](docs/ARCHITECTURE.md), [capability inventory](docs/capabilities.md),
+[CLI](cli/blossm/README.md), [deployment](deploy/README.md) and
+[prior independent-split verification](docs/SEPARATION.md) and [publication history](docs/PUBLICATION.md). Historical verification totals describe
 the source snapshots recorded there, not unverified later changes. No live
 provider deployment is claimed.
+
+The familiar hierarchy refactor has fresh parent verification in progress.
+Earlier source-split logs and manifests retain their exact historical meaning.

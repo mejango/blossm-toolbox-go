@@ -108,7 +108,7 @@ metadata, but buffered identities and scheduled work are bounded.
 
 ## Retained capability map
 
-The parent owns [the central inventory](../docs/capabilities.md). References are
+The parent owns [the central inventory](../../docs/capabilities.md). References are
 pinned under `tasks/worktrees/go-reference`; these rows identify implementation
 and remaining composition rather than implying historical wire compatibility.
 

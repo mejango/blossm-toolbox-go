@@ -9,27 +9,29 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/mejango/blossm-toolbox-go/rpc"
-	"github.com/mejango/blossm-toolbox-go/stores/event"
+	canonicaljson "github.com/mejango/blossm-toolbox-go/lib/canonical_json"
+	eventlib "github.com/mejango/blossm-toolbox-go/lib/event"
+	"github.com/mejango/blossm-toolbox-go/procedures/event_stores/generic"
+	"github.com/mejango/blossm-toolbox-go/rpc/generic"
 )
 
 // The fixture supplies the transaction primitives used by the real Store.Append;
 // command tests exercise its normalization, deduplication, replay and commit gate.
 type memoryBackend struct {
 	mutex   sync.Mutex
-	records []eventstore.Event
+	records []eventlib.Event
 	counts  map[string]int64
 }
 type memoryTx struct {
-	eventstore.Tx
-	records []eventstore.Event
+	eventlib.Tx
+	records []eventlib.Event
 	counts  map[string]int64
 }
 
-func (b *memoryBackend) Update(ctx context.Context, fn func(eventstore.Tx) error) error {
+func (b *memoryBackend) Update(ctx context.Context, fn func(eventlib.Tx) error) error {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
-	tx := &memoryTx{records: append([]eventstore.Event(nil), b.records...), counts: map[string]int64{}}
+	tx := &memoryTx{records: append([]eventlib.Event(nil), b.records...), counts: map[string]int64{}}
 	for k, v := range b.counts {
 		tx.counts[k] = v
 	}
@@ -40,36 +42,36 @@ func (b *memoryBackend) Update(ctx context.Context, fn func(eventstore.Tx) error
 	b.counts = tx.counts
 	return nil
 }
-func (b *memoryBackend) View(ctx context.Context, fn func(eventstore.Reader) error) error {
+func (b *memoryBackend) View(ctx context.Context, fn func(eventlib.Reader) error) error {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 	return fn(&memoryTx{records: b.records, counts: b.counts})
 }
-func (*memoryBackend) Close(context.Context) error                   { return nil }
-func (*memoryTx) LockRoots(context.Context, []eventstore.Root) error { return nil }
-func (m *memoryTx) Find(_ context.Context, key string) (eventstore.Event, error) {
+func (*memoryBackend) Close(context.Context) error                 { return nil }
+func (*memoryTx) LockRoots(context.Context, []eventlib.Root) error { return nil }
+func (m *memoryTx) Find(_ context.Context, key string) (eventlib.Event, error) {
 	for _, e := range m.records {
 		if e.Input.Key == key {
 			return e, nil
 		}
 	}
-	return eventstore.Event{}, eventstore.ErrNotFound
+	return eventlib.Event{}, eventlib.ErrNotFound
 }
-func (m *memoryTx) Count(_ context.Context, r eventstore.Root) (int64, error) {
+func (m *memoryTx) Count(_ context.Context, r eventlib.Root) (int64, error) {
 	return m.counts[r.Key()], nil
 }
-func (m *memoryTx) PutCount(_ context.Context, r eventstore.Root, n int64) error {
+func (m *memoryTx) PutCount(_ context.Context, r eventlib.Root, n int64) error {
 	m.counts[r.Key()] = n
 	return nil
 }
-func (m *memoryTx) PutEvent(_ context.Context, e eventstore.Event) error {
+func (m *memoryTx) PutEvent(_ context.Context, e eventlib.Event) error {
 	m.records = append(m.records, e)
 	return nil
 }
-func (*memoryTx) Snapshot(context.Context, eventstore.Root) (eventstore.Snapshot, error) {
-	return eventstore.Snapshot{}, eventstore.ErrNotFound
+func (*memoryTx) Snapshot(context.Context, eventlib.Root) (eventlib.Snapshot, error) {
+	return eventlib.Snapshot{}, eventlib.ErrNotFound
 }
-func (m *memoryTx) Events(_ context.Context, r eventstore.Root, after int64, fn func(eventstore.Event) error) error {
+func (m *memoryTx) Events(_ context.Context, r eventlib.Root, after int64, fn func(eventlib.Event) error) error {
 	for _, e := range m.records {
 		if e.Input.Root == r && e.Number > after {
 			if err := fn(e); err != nil {
@@ -86,20 +88,20 @@ func (reducer) Normalize(action string, p json.RawMessage) (json.RawMessage, err
 	if action != "set" {
 		return nil, errors.New("invalid action")
 	}
-	return eventstore.Canonical(p)
+	return canonicaljson.Canonical(p)
 }
-func (reducer) Apply(_ json.RawMessage, e eventstore.Event) (json.RawMessage, error) {
+func (reducer) Apply(_ json.RawMessage, e eventlib.Event) (json.RawMessage, error) {
 	return e.Input.Payload, nil
 }
 func testStore() *eventstore.Store {
-	return &eventstore.Store{Backend: &memoryBackend{}, Reducers: map[string]eventstore.Reducer{"core/example": reducer{}}, Local: true}
+	return &eventstore.Store{Backend: &memoryBackend{}, Reducers: map[string]eventlib.Reducer{"core/example": reducer{}}, Local: true}
 }
 func req() Request {
-	return Request{ID: "command-1", Issued: "2026-11-12T00:00:00Z", Payload: json.RawMessage(`{"value":1}`), Root: &eventstore.Root{Network: "local", Service: "core", Domain: "example", ID: "one"}, Context: Context{"principal": json.RawMessage(`"owner"`)}}
+	return Request{ID: "command-1", Issued: "2026-11-12T00:00:00Z", Payload: json.RawMessage(`{"value":1}`), Root: &eventlib.Root{Network: "local", Service: "core", Domain: "example", ID: "one"}, Context: Context{"principal": json.RawMessage(`"owner"`)}}
 }
 func basic() Procedure {
 	return Procedure{Store: testStore(), RequiresRoot: true, RequiredContexts: []string{"principal"}, Main: func(_ context.Context, r Request) (Result, error) {
-		return Result{Events: []eventstore.Input{{Action: "set", Payload: r.Payload}}}, nil
+		return Result{Events: []eventlib.Input{{Action: "set", Payload: r.Payload}}}, nil
 	}}
 }
 
@@ -111,7 +113,7 @@ func TestValidationOrderAndTrace(t *testing.T) {
 	p.Normalize = func(_ context.Context, raw json.RawMessage) (json.RawMessage, error) { order += "n"; return raw, nil }
 	old := p.Main
 	p.Main = func(ctx context.Context, r Request) (Result, error) { order += "m"; return old(ctx, r) }
-	p.Trace = &eventstore.Trace{Network: "local", Host: "host", Procedure: "command", Hash: "revision"}
+	p.Trace = &eventlib.Trace{Network: "local", Host: "host", Procedure: "command", Hash: "revision"}
 	bad := req()
 	bad.Context = nil
 	if _, err := p.Execute(context.Background(), bad); !errors.Is(err, ErrForbidden) || order != "" {
@@ -137,27 +139,27 @@ func TestFreshCommitDuplicateAndCallbackContributions(t *testing.T) {
 	callbacks := 0
 	p.Main = func(_ context.Context, r Request) (Result, error) {
 		zero := int64(0)
-		return Result{Events: []eventstore.Input{{Action: "set", Payload: r.Payload, Expected: &zero}}, Response: Contribution{Body: map[string]json.RawMessage{"nested": json.RawMessage(`{"old":1}`)}, Tokens: []json.RawMessage{json.RawMessage(`"a"`)}}, Then: func(_ context.Context, fresh []Receipt) (Contribution, error) {
+		return Result{Events: []eventlib.Input{{Action: "set", Payload: r.Payload, Expected: &zero}}, Response: Contribution{Body: map[string]json.RawMessage{"nested": json.RawMessage(`{"old":1}`)}, Tokens: []json.RawMessage{json.RawMessage(`"a"`)}}, Then: func(_ context.Context, fresh []Receipt) (Contribution, error) {
 			if len(fresh) != 1 {
 				t.Fatal("missing outcome")
 			}
-			if fresh[0].Outcome == eventstore.Committed {
+			if fresh[0].Outcome == eventlib.Committed {
 				callbacks++
 			}
 			return Contribution{Body: map[string]json.RawMessage{"nested": json.RawMessage(`{"new":2}`)}, Tokens: []json.RawMessage{json.RawMessage(`"b"`)}, StatusCode: 201}, nil
 		}}, nil
 	}
 	first, err := p.Execute(context.Background(), req())
-	if err != nil || first.Receipts[0].Outcome != eventstore.Committed || callbacks != 1 || first.StatusCode != 201 || string(first.Body["nested"]) != `{"new":2}` || len(first.Tokens) != 2 {
+	if err != nil || first.Receipts[0].Outcome != eventlib.Committed || callbacks != 1 || first.StatusCode != 201 || string(first.Body["nested"]) != `{"new":2}` || len(first.Tokens) != 2 {
 		t.Fatal(first, err)
 	}
 	replay, err := p.Execute(context.Background(), req())
-	if err != nil || replay.Receipts[0].Outcome != eventstore.Duplicate || callbacks != 1 || string(replay.Body["nested"]) != `{"new":2}` || replay.StatusCode != 201 {
+	if err != nil || replay.Receipts[0].Outcome != eventlib.Duplicate || callbacks != 1 || string(replay.Body["nested"]) != `{"new":2}` || replay.StatusCode != 201 {
 		t.Fatal("duplicate reran effect", replay, err)
 	}
 	changed := req()
 	changed.Payload = json.RawMessage(`{"value":2}`)
-	if _, err = p.Execute(context.Background(), changed); !errors.Is(err, eventstore.ErrIdempotency) {
+	if _, err = p.Execute(context.Background(), changed); !errors.Is(err, eventlib.ErrIdempotency) {
 		t.Fatal("changed retry accepted", err)
 	}
 }
@@ -167,8 +169,8 @@ func TestCallbackFailurePreservesCommitAndIsNotDurable(t *testing.T) {
 	calls := 0
 	cause := errors.New("delivery failed")
 	p.Main = func(_ context.Context, r Request) (Result, error) {
-		return Result{Events: []eventstore.Input{{Action: "set", Payload: r.Payload}}, Then: func(_ context.Context, outcomes []Receipt) (Contribution, error) {
-			if outcomes[0].Outcome != eventstore.Committed {
+		return Result{Events: []eventlib.Input{{Action: "set", Payload: r.Payload}}, Then: func(_ context.Context, outcomes []Receipt) (Contribution, error) {
+			if outcomes[0].Outcome != eventlib.Committed {
 				return Contribution{}, nil
 			}
 			calls++
@@ -177,11 +179,11 @@ func TestCallbackFailurePreservesCommitAndIsNotDurable(t *testing.T) {
 	}
 	out, err := p.Execute(context.Background(), req())
 	var callbackErr *CallbackError
-	if !errors.As(err, &callbackErr) || !errors.Is(err, cause) || len(out.Receipts) != 1 || out.Receipts[0].Outcome != eventstore.Committed {
+	if !errors.As(err, &callbackErr) || !errors.Is(err, cause) || len(out.Receipts) != 1 || out.Receipts[0].Outcome != eventlib.Committed {
 		t.Fatal("commit evidence lost", out, err)
 	}
 	out, err = p.Execute(context.Background(), req())
-	if err != nil || out.Receipts[0].Outcome != eventstore.Duplicate || calls != 1 {
+	if err != nil || out.Receipts[0].Outcome != eventlib.Duplicate || calls != 1 {
 		t.Fatal("callback incorrectly recovered as durable action", out, err)
 	}
 }
@@ -215,15 +217,15 @@ func TestQueuedAcceptanceAndConsume(t *testing.T) {
 		return r, err
 	}
 	out, err := p.Execute(context.Background(), in)
-	if err != nil || out.Receipts[0].Outcome != eventstore.Queued || out.Receipts[0].Event != nil || !callback || out.Acceptance.ID != "provider-message" {
+	if err != nil || out.Receipts[0].Outcome != eventlib.Queued || out.Receipts[0].Event != nil || !callback || out.Acceptance.ID != "provider-message" {
 		t.Fatal(out, err)
 	}
 	receipts, err := Consume(context.Background(), p.Store, q.batch)
-	if err != nil || receipts[0].Outcome != eventstore.Committed {
+	if err != nil || receipts[0].Outcome != eventlib.Committed {
 		t.Fatal(receipts, err)
 	}
 	receipts, err = Consume(context.Background(), p.Store, q.batch)
-	if err != nil || receipts[0].Outcome != eventstore.Duplicate {
+	if err != nil || receipts[0].Outcome != eventlib.Duplicate {
 		t.Fatal(receipts, err)
 	}
 	q.acceptance.ID = ""
@@ -257,7 +259,7 @@ func TestConditionalAndLocalCommandsBypassQueue(t *testing.T) {
 			in := req()
 			in.Async = true
 			out, err := p.Execute(context.Background(), in)
-			if err != nil || out.Receipts[0].Outcome != eventstore.Committed || q.calls != 0 {
+			if err != nil || out.Receipts[0].Outcome != eventlib.Committed || q.calls != 0 {
 				t.Fatal(out, err, q.calls)
 			}
 		})
@@ -291,7 +293,7 @@ func TestCommandThroughActualHTTPRPC(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i, want := range []eventstore.Outcome{eventstore.Committed, eventstore.Duplicate} {
+	for i, want := range []eventlib.Outcome{eventlib.Committed, eventlib.Duplicate} {
 		wire, err := client.Do(context.Background(), http.MethodPost, "/command", nil, req(), http.Header{"Authorization": []string{"Bearer test"}})
 		if err != nil {
 			t.Fatal(err)
@@ -308,9 +310,9 @@ func TestMixedBatchCallbackGetsAllOutcomes(t *testing.T) {
 	count := 1
 	var received []Receipt
 	p.Main = func(_ context.Context, r Request) (Result, error) {
-		events := []eventstore.Input{{Action: "set", Payload: r.Payload}}
+		events := []eventlib.Input{{Action: "set", Payload: r.Payload}}
 		if count == 2 {
-			events = append(events, eventstore.Input{Action: "set", Payload: r.Payload})
+			events = append(events, eventlib.Input{Action: "set", Payload: r.Payload})
 		}
 		return Result{Events: events, Then: func(_ context.Context, fresh []Receipt) (Contribution, error) {
 			received = fresh
@@ -322,7 +324,7 @@ func TestMixedBatchCallbackGetsAllOutcomes(t *testing.T) {
 	}
 	count = 2
 	out, err := p.Execute(context.Background(), req())
-	if err != nil || len(out.Receipts) != 2 || out.Receipts[0].Outcome != eventstore.Duplicate || out.Receipts[1].Outcome != eventstore.Committed || len(received) != 2 || received[0].Outcome != eventstore.Duplicate || received[1].Outcome != eventstore.Committed || received[0].Event.Number != 0 || received[1].Event.Number != 1 {
+	if err != nil || len(out.Receipts) != 2 || out.Receipts[0].Outcome != eventlib.Duplicate || out.Receipts[1].Outcome != eventlib.Committed || len(received) != 2 || received[0].Outcome != eventlib.Duplicate || received[1].Outcome != eventlib.Committed || received[0].Event.Number != 0 || received[1].Event.Number != 1 {
 		t.Fatal(out, received, err)
 	}
 }
@@ -346,7 +348,7 @@ func TestCommandIDCannotBeRetargeted(t *testing.T) {
 	other := *in.Root
 	other.ID = "other"
 	in.Root = &other
-	if _, err := p.Execute(context.Background(), in); !errors.Is(err, eventstore.ErrIdempotency) {
+	if _, err := p.Execute(context.Background(), in); !errors.Is(err, eventlib.ErrIdempotency) {
 		t.Fatal("same command ID accepted a different target", err)
 	}
 }
@@ -356,7 +358,7 @@ func TestConditionalConflictDoesNotInvokeCallback(t *testing.T) {
 	calls := 0
 	p.Main = func(_ context.Context, in Request) (Result, error) {
 		zero := int64(0)
-		return Result{Events: []eventstore.Input{{Action: "set", Payload: in.Payload, Expected: &zero}}, Then: func(context.Context, []Receipt) (Contribution, error) { calls++; return Contribution{}, nil }}, nil
+		return Result{Events: []eventlib.Input{{Action: "set", Payload: in.Payload, Expected: &zero}}, Then: func(context.Context, []Receipt) (Contribution, error) { calls++; return Contribution{}, nil }}, nil
 	}
 	in := req()
 	if _, err := p.Execute(context.Background(), in); err != nil {
@@ -364,7 +366,7 @@ func TestConditionalConflictDoesNotInvokeCallback(t *testing.T) {
 	}
 	in.ID = "competing-command"
 	out, err := p.Execute(context.Background(), in)
-	if !errors.Is(err, eventstore.ErrConflict) || calls != 1 || len(out.Receipts) != 0 {
+	if !errors.Is(err, eventlib.ErrConflict) || calls != 1 || len(out.Receipts) != 0 {
 		t.Fatal("failed condition leaked effects", out, err, calls)
 	}
 }
@@ -380,7 +382,7 @@ func TestCallbackMutationCannotChangeCommitEvidence(t *testing.T) {
 			var original []byte
 			p.Main = func(_ context.Context, r Request) (Result, error) {
 				zero := int64(0)
-				return Result{Events: []eventstore.Input{{Action: "set", Payload: r.Payload, Expected: &zero}}, Then: func(_ context.Context, fresh []Receipt) (Contribution, error) {
+				return Result{Events: []eventlib.Input{{Action: "set", Payload: r.Payload, Expected: &zero}}, Then: func(_ context.Context, fresh []Receipt) (Contribution, error) {
 					if len(fresh) != 1 {
 						t.Fatal("expected one fresh receipt")
 					}
@@ -408,7 +410,7 @@ func TestCallbackMutationCannotChangeCommitEvidence(t *testing.T) {
 			}
 			in := req()
 			in.Claims = json.RawMessage(`{"sub":"owner"}`)
-			in.Transaction.Path = []eventstore.Trace{{Network: "local", Host: "host", Procedure: "command", Hash: "revision"}}
+			in.Transaction.Path = []eventlib.Trace{{Network: "local", Host: "host", Procedure: "command", Hash: "revision"}}
 			out, err := p.Execute(ctx, in)
 			var callbackErr *CallbackError
 			if fail {
@@ -418,10 +420,10 @@ func TestCallbackMutationCannotChangeCommitEvidence(t *testing.T) {
 			} else if err != nil {
 				t.Fatal(err)
 			}
-			if len(out.Receipts) != 1 || out.Receipts[0].Outcome != eventstore.Committed || out.Receipts[0].Event == nil {
+			if len(out.Receipts) != 1 || out.Receipts[0].Outcome != eventlib.Committed || out.Receipts[0].Event == nil {
 				t.Fatal("missing commit evidence", out)
 			}
-			check := func(event eventstore.Event) {
+			check := func(event eventlib.Event) {
 				t.Helper()
 				if err := eventstore.Verify(event); err != nil {
 					t.Fatal("callback corrupted hash", err)
@@ -435,7 +437,7 @@ func TestCallbackMutationCannotChangeCommitEvidence(t *testing.T) {
 			if !json.Valid(out.Receipts[0].Input.Payload) || !json.Valid(out.Receipts[0].Input.Context) || !json.Valid(out.Receipts[0].Input.Transaction.Claims) || *out.Receipts[0].Input.Expected != 0 || out.Receipts[0].Input.Transaction.Path[0].Host != "host" {
 				t.Fatal("callback changed response input")
 			}
-			if err := store.Backend.View(ctx, func(r eventstore.Reader) error {
+			if err := store.Backend.View(ctx, func(r eventlib.Reader) error {
 				event, err := r.Find(ctx, out.Receipts[0].Event.Input.Key)
 				if err != nil {
 					return err
@@ -462,9 +464,9 @@ func TestThenEmptyAndQueuedOutcomes(t *testing.T) {
 			in.Async = true
 			calls := 0
 			p.Main = func(_ context.Context, r Request) (Result, error) {
-				var events []eventstore.Input
+				var events []eventlib.Input
 				if queued {
-					events = []eventstore.Input{{Action: "set", Payload: r.Payload}}
+					events = []eventlib.Input{{Action: "set", Payload: r.Payload}}
 				}
 				return Result{Events: events, Then: func(_ context.Context, outcomes []Receipt) (Contribution, error) {
 					calls++
@@ -472,7 +474,7 @@ func TestThenEmptyAndQueuedOutcomes(t *testing.T) {
 						t.Fatal("nil outcomes instead of empty slice")
 					}
 					if queued {
-						if len(outcomes) != 1 || outcomes[0].Outcome != eventstore.Queued || outcomes[0].Event != nil {
+						if len(outcomes) != 1 || outcomes[0].Outcome != eventlib.Queued || outcomes[0].Event != nil {
 							t.Fatal(outcomes)
 						}
 						outcomes[0].Input.Payload[0] = '!'
@@ -523,7 +525,7 @@ func TestThenFailurePreservesQueuedAcceptance(t *testing.T) {
 	in.Async = true
 	out, err := p.Execute(context.Background(), in)
 	var callback *CallbackError
-	if !errors.As(err, &callback) || !errors.Is(err, cause) || out.Acceptance == nil || out.Acceptance.ID != "accepted" || out.Receipts[0].Outcome != eventstore.Queued {
+	if !errors.As(err, &callback) || !errors.Is(err, cause) || out.Acceptance == nil || out.Acceptance.ID != "accepted" || out.Receipts[0].Outcome != eventlib.Queued {
 		t.Fatal(out, err)
 	}
 }
@@ -540,19 +542,19 @@ func TestGeneratedKeysAreActorScoped(t *testing.T) {
 	b := req()
 	b.Context = Context{"principal": json.RawMessage(`{"network":"local","id":"bob"}`)}
 	second, err := p.Execute(ctx, b)
-	if err != nil || second.Receipts[0].Outcome != eventstore.Committed || first.Receipts[0].Event.Input.Key == second.Receipts[0].Event.Input.Key {
+	if err != nil || second.Receipts[0].Outcome != eventlib.Committed || first.Receipts[0].Event.Input.Key == second.Receipts[0].Event.Input.Key {
 		t.Fatal("another actor reserved this request ID", second, err)
 	}
 	// Reordering trusted principal JSON cannot create a new namespace.
 	a.Context["principal"] = json.RawMessage(`{ "id":"alice", "network":"local" }`)
 	duplicate, err := p.Execute(ctx, a)
-	if err != nil || duplicate.Receipts[0].Outcome != eventstore.Duplicate {
+	if err != nil || duplicate.Receipts[0].Outcome != eventlib.Duplicate {
 		t.Fatal("principal JSON formatting changed identity", duplicate, err)
 	}
 	other := *a.Root
 	other.ID = "other"
 	a.Root = &other
-	if _, err = p.Execute(ctx, a); !errors.Is(err, eventstore.ErrIdempotency) {
+	if _, err = p.Execute(ctx, a); !errors.Is(err, eventlib.ErrIdempotency) {
 		t.Fatal("actor retarget escaped original request", err)
 	}
 }
@@ -570,12 +572,12 @@ func TestGeneratedKeysUseStableClaimsWhenPrincipalAbsent(t *testing.T) {
 	}
 	in.Claims = json.RawMessage(`{"role":"reader","sub":"alice","aud":["service"],"iss":"issuer","exp":200,"iat":20,"nbf":20,"jti":"refreshed"}`)
 	repeated, err := p.Execute(ctx, in)
-	if err != nil || repeated.Receipts[0].Outcome != eventstore.Duplicate || repeated.Receipts[0].Event.Hash != first.Receipts[0].Event.Hash {
+	if err != nil || repeated.Receipts[0].Outcome != eventlib.Duplicate || repeated.Receipts[0].Event.Hash != first.Receipts[0].Event.Hash {
 		t.Fatal("token refresh changed request identity", repeated, err)
 	}
 	// Nonidentity claims remain fingerprint-bound, not a way to allocate another key.
 	in.Claims = json.RawMessage(`{"iss":"issuer","aud":["service"],"sub":"alice","role":"admin"}`)
-	if _, err = p.Execute(ctx, in); !errors.Is(err, eventstore.ErrIdempotency) {
+	if _, err = p.Execute(ctx, in); !errors.Is(err, eventlib.ErrIdempotency) {
 		t.Fatal("authority change escaped fingerprint", err)
 	}
 	for _, claims := range []string{
@@ -585,7 +587,7 @@ func TestGeneratedKeysUseStableClaimsWhenPrincipalAbsent(t *testing.T) {
 	} {
 		in.Claims = json.RawMessage(claims)
 		result, err := p.Execute(ctx, in)
-		if err != nil || result.Receipts[0].Outcome != eventstore.Committed {
+		if err != nil || result.Receipts[0].Outcome != eventlib.Committed {
 			t.Fatal("independent claims actor collided", result, err)
 		}
 	}
@@ -600,12 +602,12 @@ func TestPrincipalNamespaceTakesPriorityAndExplicitKeyOverrides(t *testing.T) {
 		t.Fatal(err)
 	}
 	in.Claims = json.RawMessage(`{"iss":"issuer","sub":"second"}`)
-	if _, err := p.Execute(ctx, in); !errors.Is(err, eventstore.ErrIdempotency) {
+	if _, err := p.Execute(ctx, in); !errors.Is(err, eventlib.ErrIdempotency) {
 		t.Fatal("claims replaced trusted principal namespace", err)
 	}
 	p = basic()
 	p.Main = func(_ context.Context, in Request) (Result, error) {
-		return Result{Events: []eventstore.Input{{Key: "explicit-global-key", Action: "set", Payload: in.Payload}}}, nil
+		return Result{Events: []eventlib.Input{{Key: "explicit-global-key", Action: "set", Payload: in.Payload}}}, nil
 	}
 	first, err := p.Execute(ctx, req())
 	if err != nil {
@@ -616,7 +618,7 @@ func TestPrincipalNamespaceTakesPriorityAndExplicitKeyOverrides(t *testing.T) {
 	}
 	other := req()
 	other.Context = Context{"principal": json.RawMessage(`"other"`)}
-	if _, err = p.Execute(ctx, other); !errors.Is(err, eventstore.ErrIdempotency) {
+	if _, err = p.Execute(ctx, other); !errors.Is(err, eventlib.ErrIdempotency) {
 		t.Fatal("explicit key was implicitly namespaced", err)
 	}
 }

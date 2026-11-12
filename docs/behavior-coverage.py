@@ -46,13 +46,37 @@ TEST_REPLACEMENTS = {
     'cli/runtime_test.go:TestFrameworkRejectsUnverifiedCloudRunIAMDelivery': ('TestRejectsUnverifiedCloudRunIAMDelivery', 'Same explicit IAM/token-forwarding rejection lives in the application-independent CLI.'),
 }
 
-def current_paths(file):
+# Prior independent-module paths to the familiar JS hierarchy.
+HIERARCHY_PREFIXES = {'cloud/aws': 'vendors/aws', 'cloud/gcp': 'vendors/gcp', 'storage/mongo': 'vendors/mongodb', 'storage/postgres': 'vendors/postgres', 'storage/internal': 'vendors/internal', 'integrations/redis': 'vendors/redis', 'integrations/dwolla': 'vendors/dwolla', 'integrations/chainpoint': 'vendors/chainpoint', 'integrations/internal': 'vendors/internal', 'stores/event': 'procedures/event_stores/generic', 'stores/view': 'procedures/view_stores/generic', 'security/authn': 'lib/authentication_error', 'security/token': 'lib/jwt', 'security/audit': 'procedures/event_stores/audit', 'rpc': 'rpc/generic', 'transport': 'procedures/gateways', 'runtime/auth': 'procedures/server/auth', 'runtime/env': 'procedures/server/env', 'runtime/publication': 'procedures/server/publication', 'runtime/queue': 'procedures/server/queue', 'delivery': 'procedures/server/delivery', 'cli': 'cli/blossm', 'integration': 'tests/integration', 'storage/internal/queryindex': 'lib/query', 'storage/internal/querytest': 'tests/querytest', 'storage/internal/frontiertest': 'tests/frontiertest'}
+HIERARCHY_FILES = {'stores/event/protocol.go': ['lib/event/protocol.go'], 'stores/event/canonical.go': ['lib/canonical_json/canonical.go'], 'stores/event/canonical_test.go': ['lib/canonical_json/canonical_test.go', 'lib/query/matches_test.go', 'procedures/event_stores/generic/block_test.go'], 'stores/event/query.go': ['procedures/event_stores/generic/query.go', 'lib/query/matches.go'], 'stores/event/reducer.go': ['procedures/event_stores/generic/reducer.go', 'lib/event/clone.go'], 'security/cryptography/mpt.go': ['lib/merkle_tree/mpt.go'], 'security/cryptography/rlp.go': ['lib/rlp/rlp.go'], 'security/cryptography/cryptography_test.go': ['tests/cryptography/cryptography_test.go'], 'security/cryptography': ['lib/merkle_tree', 'lib/rlp'], 'transport/command_client.go': ['procedures/command/rpc/command_client.go'], 'transport/command_client_test.go': ['procedures/gateways/command_client_test.go'], 'transport/store_client.go': ['procedures/event_stores/rpc/store_client.go'], 'transport/store_merge.go': ['procedures/event_stores/rpc/store_merge.go'], 'transport/store_merge_test.go': ['procedures/gateways/store_merge_test.go'], 'transport/cors.go': ['middleware/cors/cors.go'], 'transport/cors_test.go': ['middleware/cors/cors_test.go']}
+
+HIERARCHY_FILES.update({'cloud/README.md': ['vendors/docs/cloud.md'], 'integrations/README.md': ['vendors/docs/external-integrations.md'], 'storage/tasks/todo.md': ['vendors/tasks/storage-todo.md'], 'storage/tasks/lessons.md': ['vendors/tasks/storage-lessons.md'], 'integrations/tasks/todo.md': ['vendors/tasks/integrations-todo.md']})
+HIERARCHY_PREFIXES.update({"cloud":"vendors", "storage":"vendors", "integrations":"vendors"})
+
+def hierarchy_paths(file):
+    if file.startswith('dia-go:'):
+        return [file]
+    if file in HIERARCHY_FILES:
+        return HIERARCHY_FILES[file]
+    # The few target prefixes nested under an old prefix must not move twice.
+    if file in ('rpc/generic', 'cli/blossm') or file.startswith(('rpc/generic/', 'cli/blossm/')):
+        return [file]
+    for old, new in sorted(HIERARCHY_PREFIXES.items(), key=lambda pair: -len(pair[0])):
+        if file == old or file.startswith(old + '/'):
+            return [new + file[len(old):]]
+    return [file]
+
+
+def split_paths(file):
     if file in FILE_MOVES:
         return FILE_MOVES[file]
     for old, new in sorted(PREFIX_MOVES.items(), key=lambda pair: -len(pair[0])):
         if file == old or file.startswith(old + '/'):
             return [new + file[len(old):]]
     return [file]
+
+def current_paths(file):
+    return list(dict.fromkeys(path for prior in split_paths(file) for path in hierarchy_paths(prior)))
 
 def source_path(file):
     return DIA_SOURCE / file.removeprefix('dia-go:') if file.startswith('dia-go:') else ROOT / file
@@ -166,7 +190,7 @@ def go_tests(selector):
                 assertions.append(dict(line=line+offset, code=value.strip(),
                                        predicate_context='\n'.join(lines[max(0,offset-3):offset+2]).strip()))
         selected.append(dict(file=file, test=match[1], line=line, body_sha256=digest(block),
-                             assertions=assertions, execution='current source inspected; split execution gates tracked separately'))
+                             assertions=assertions, execution='current source inspected; hierarchy execution gates tracked separately'))
     return selected, None if selected else dict(selector=selector, reason='test/function not present at snapshot')
 
 
@@ -200,6 +224,9 @@ def build():
     historical_set = {f['id']: f.get('historical_go_assertions', [
         {k: a[k] for k in ('file', 'test', 'body_sha256')} for a in f['go_assertions']]) for f in saved['families']}
     preserved('historical_go_assertions_sha256', historical_set)
+    hierarchy_baseline = {f['id']: f.get('hierarchy_baseline_go_assertions', [
+        {k: a[k] for k in ('file', 'test', 'body_sha256')} for a in f['go_assertions']]) for f in saved['families']}
+    preserved('hierarchy_go_assertions_sha256', hierarchy_baseline)
     assigned, families = {}, []
     for specification in FAMILIES:
         family = dict(specification)
@@ -225,6 +252,7 @@ def build():
         historical = old.get('historical_go_assertions', [
             {k: t[k] for k in ('file', 'test', 'body_sha256')} for t in old['go_assertions']])
         family['historical_go_assertions'] = historical
+        family['hierarchy_baseline_go_assertions'] = hierarchy_baseline[family['id']]
         current_names = {t['test'] for t in family['go_assertions']}
         family['selector_replacements'] = []
         for anchor in historical:
@@ -237,16 +265,20 @@ def build():
                 family['unresolved_go_selectors'].append(dict(
                     selector=anchor['file'] + ':' + anchor['test'],
                     reason='Historical assertion requires explicit current replacement; never silently dropped'))
+        for anchor in family['hierarchy_baseline_go_assertions']:
+            if anchor['test'] not in current_names:
+                family['unresolved_go_selectors'].append(dict(selector=anchor['file'] + ':' + anchor['test'], reason='Prior split assertion missing after hierarchy move; explicit replacement required'))
         family['js_case_ids'] = old['js_case_ids']
         family['assertion_count'] = sum(len(t['assertions']) for t in family['go_assertions'])
-        family['coverage_boundary'] = 'Current repository-qualified source anchors are inspected, not execution evidence. Historical notes and assertion hashes describe the pre-split snapshot. All original JS cases remain indexed; family associations do not prove one-to-one parity.'
+        family['coverage_boundary'] = 'Current repository-qualified source anchors are inspected, not execution evidence. Historical notes and assertion hashes describe their pre-split or prior independent-module snapshots. All original JS cases remain indexed; family associations do not prove one-to-one parity.'
         if not family['assertion_count'] and family['disposition'] not in ('missing-assertion','deliberate-contract-change'):
             family['disposition'] = 'missing-assertion'
         families.append(family)
     assert assigned == saved['package_family_assignment'], 'Retained package assignments changed'
-    return dict(schema_version=2, status=inventory['verification_stage']['overall'],
+    return dict(schema_version=3, status=inventory['verification_stage']['overall'],
                 reference_commit=inventory['reference_commit'],
                 historical_snapshot=inventory['historical_snapshot'],
+                prior_split_snapshot=inventory['prior_split_snapshot'],
                 source_repositories=inventory['source_repositories'],
                 baseline_evidence=saved['baseline_evidence'],
                 current_checkpoint=inventory['verification_stage'].get('current_checkpoint', {}),
@@ -262,7 +294,7 @@ def build():
 
 def markdown(ledger):
     lines=['# Retained behavior coverage','', '**Current verification status: '+ledger['status']+'.** '+ledger['required_completion'], '',
-           'This ledger maps observable JS contracts to actual Go test assertions. It is not a package-count or passing-suite equivalence claim. Historical gate results and reviews apply to the pre-split snapshot only. Current split verification is tracked separately in capabilities.json.', '',
+           'This ledger maps observable JS contracts to actual Go test assertions. It is not a package-count or passing-suite equivalence claim. Pre-split and prior independent-module gate results apply only to their recorded snapshots. The new familiar-name hierarchy has its own pending verification state in capabilities.json.', '',
            'The [machine matrix](behavior-coverage.json) includes every retained package assignment, all indexed JS test call-sites/assertion lines, selected Go test names/assertion predicates and explicit unresolved selectors. Run `DIA_SOURCE=/path/to/dia-go python3 docs/behavior-coverage.py --check` to verify both source trees (default: sibling `../dia-go`). This documentation check is not a Go build dependency. `--refresh` updates current Go anchors while preserving the frozen JS catalog and historical assertion identities; it does not run tests or mark gaps resolved. Unresolved relocations fail the check. Dia links use the recorded commit when pinned; review branches are used until the paired change is approved.', '',
            'The pinned Toolbox reference is `'+ledger['reference_commit']+'`. Dia test references use the preserved reference workspace Dia source with file hashes. JB/shop and Relayr payment test files are listed as exclusions; direct custodial-wallet tests remain included. Literal JS call-sites are not expanded parameterized case counts.', '',
            'Each row has a specific contract and Go predicate excerpts in JSON. `assertions-mapped` is source evidence only. `deliberate-contract-change` names a fresh internal contract, not permission to drop a retained behavior. `remediation-active` and `missing-assertion` remain incomplete. The current checkpoint above governs execution status. Row notes preserve contract boundaries and historical scoped reports; they do not override the current gate state.', '',
@@ -276,7 +308,7 @@ def markdown(ledger):
         lines.append('| '+f['id']+' | '+f['contract'].replace('|','\\|')+' | '+anchors+' | '+gap.replace('|','\\|')+' |')
     lines+=['','## Checkability and limits','',
             f'The ledger assigns all{ledger["counts"]["packages"]} retained package names and inventories{ledger["counts"]["families"]} behavior families. These are bookkeeping counts, not test coverage percentages. A test file/function without an actual assertion is not promoted to semantic evidence. Shared native helper calls require inspection of the helper predicates too.', '',
-            'The machine reference catalog retains literal JS tests not individually paired to a unique Go assertion; no one-to-one coverage percentage is claimed. No exhaustive historical branch/default parity is inferred from the family association. All pre-split gates and bounded reviews have their recorded historical scopes. Current split gates require fresh evidence tied to both repository revisions.', '',
+            'The machine reference catalog retains literal JS tests not individually paired to a unique Go assertion; no one-to-one coverage percentage is claimed. No exhaustive historical branch/default parity is inferred from the family association. All pre-split gates and bounded reviews have their recorded historical scopes. Current hierarchy gates require fresh evidence tied to both repository revisions.', '',
             'No cloud deployment, live payment/chain operation or production provider compatibility is established. Dia owns examples/document and cmd/document; Toolbox owns generic framework components. Cross-repository links do not create a framework dependency on the application.']
     return '\n'.join(lines)+'\n'
 

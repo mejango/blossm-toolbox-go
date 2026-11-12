@@ -6,19 +6,20 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/mejango/blossm-toolbox-go/stores/event"
-	"github.com/mejango/blossm-toolbox-go/stores/view"
+	canonicaljson "github.com/mejango/blossm-toolbox-go/lib/canonical_json"
+	eventlib "github.com/mejango/blossm-toolbox-go/lib/event"
+	"github.com/mejango/blossm-toolbox-go/procedures/view_stores/generic"
 )
 
 type node struct {
-	Root eventstore.Root
+	Root eventlib.Root
 	Flag string
 }
 type graph struct {
 	engine  *Engine
 	limits  Limits
 	visited int
-	active  map[eventstore.Root]bool
+	active  map[eventlib.Root]bool
 	// done records both successful and optional-missing nodes. A later required
 	// reference to a missing node must still fail rather than silently disappear.
 	done      map[node]bool
@@ -43,7 +44,7 @@ func (g *graph) visit(ctx context.Context, r Request, optional bool) error {
 	key := node{r.Root, r.Flag}
 	if exists, seen := g.done[key]; seen {
 		if !exists && !optional {
-			return eventstore.ErrNotFound
+			return eventlib.ErrNotFound
 		}
 		return nil
 	}
@@ -52,7 +53,7 @@ func (g *graph) visit(ctx context.Context, r Request, optional bool) error {
 		return fmt.Errorf("%w: %v", ErrHandler, source(r.Root))
 	}
 	aggregate, err := g.engine.Aggregates.Aggregate(ctx, r.Root)
-	if errors.Is(err, eventstore.ErrNotFound) && optional {
+	if errors.Is(err, eventlib.ErrNotFound) && optional {
 		g.done[key] = false
 		return nil
 	}
@@ -67,15 +68,15 @@ func (g *graph) visit(ctx context.Context, r Request, optional bool) error {
 			g.done[key] = false
 			return nil
 		}
-		return eventstore.ErrNotFound
+		return eventlib.ErrNotFound
 	}
 	if err = validateVersion(aggregate.Version); err != nil {
 		return err
 	}
 	if r.Event != nil && aggregate.Version < r.Event.Version {
-		return fmt.Errorf("%w: aggregate predates triggering revision", eventstore.ErrConflict)
+		return fmt.Errorf("%w: aggregate predates triggering revision", eventlib.ErrConflict)
 	}
-	aggregate.State, err = eventstore.Canonical(aggregate.State)
+	aggregate.State, err = canonicaljson.Canonical(aggregate.State)
 	if err != nil {
 		return err
 	}

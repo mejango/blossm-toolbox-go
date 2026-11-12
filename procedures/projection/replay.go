@@ -7,7 +7,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mejango/blossm-toolbox-go/stores/event"
+	canonicaljson "github.com/mejango/blossm-toolbox-go/lib/canonical_json"
+	eventlib "github.com/mejango/blossm-toolbox-go/lib/event"
 )
 
 const MaxReplayBatch = 10000
@@ -18,7 +19,7 @@ type RunID string
 
 func (id RunID) Validate() error {
 	if strings.TrimSpace(string(id)) == "" || len(id) > 1024 {
-		return fmt.Errorf("%w: replay run ID must be nonblank and at most 1024 bytes", eventstore.ErrInvalid)
+		return fmt.Errorf("%w: replay run ID must be nonblank and at most 1024 bytes", eventlib.ErrInvalid)
 	}
 	return nil
 }
@@ -26,19 +27,19 @@ func (id RunID) Validate() error {
 // RootStream must await callbacks serially, stop on their error and never
 // replay them. Roots must be strictly ascending by Root.Key across all scopes.
 type RootStream interface {
-	StreamRoots(context.Context, func(eventstore.Root) error) error
+	StreamRoots(context.Context, func(eventlib.Root) error) error
 }
 type Producer interface {
 	Enqueue(context.Context, Request) error
 }
-type BackendRoots struct{ Backend eventstore.Backend }
+type BackendRoots struct{ Backend eventlib.Backend }
 
-func (r BackendRoots) StreamRoots(ctx context.Context, fn func(eventstore.Root) error) error {
+func (r BackendRoots) StreamRoots(ctx context.Context, fn func(eventlib.Root) error) error {
 	if r.Backend == nil {
 		return fmt.Errorf("replay backend required")
 	}
-	return r.Backend.View(ctx, func(reader eventstore.Reader) error {
-		return reader.Roots(ctx, func(root eventstore.Root) error {
+	return r.Backend.View(ctx, func(reader eventlib.Reader) error {
+		return reader.Roots(ctx, func(root eventlib.Root) error {
 			count, err := reader.Count(ctx, root)
 			if err != nil {
 				return err
@@ -82,12 +83,12 @@ func (s Scheduler) Replay(ctx context.Context, source Source, runID RunID, after
 	if limit < 1 || limit > MaxReplayBatch {
 		return result, fmt.Errorf("replay limit must be 1..%d", MaxReplayBatch)
 	}
-	if err := validateRoot(eventstore.Root{Network: source.Network, Service: source.Service, Domain: source.Domain, ID: "scope"}); err != nil {
+	if err := validateRoot(eventlib.Root{Network: source.Network, Service: source.Service, Domain: source.Domain, ID: "scope"}); err != nil {
 		return result, err
 	}
 	if after != "" {
-		var root eventstore.Root
-		if err := eventstore.Decode(json.RawMessage(after), &root); err != nil {
+		var root eventlib.Root
+		if err := canonicaljson.Decode(json.RawMessage(after), &root); err != nil {
 			return result, fmt.Errorf("invalid replay cursor: %w", err)
 		}
 		if err := validateRoot(root); err != nil {
@@ -99,9 +100,9 @@ func (s Scheduler) Replay(ctx context.Context, source Source, runID RunID, after
 		after = root.Key()
 		result.After = after
 	}
-	roots := make([]eventstore.Root, 0, limit+1)
+	roots := make([]eventlib.Root, 0, limit+1)
 	previous := ""
-	err := s.Roots.StreamRoots(ctx, func(root eventstore.Root) error {
+	err := s.Roots.StreamRoots(ctx, func(root eventlib.Root) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}

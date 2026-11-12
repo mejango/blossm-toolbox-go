@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/mejango/blossm-toolbox-go/procedures/command"
-	"github.com/mejango/blossm-toolbox-go/rpc"
+	"github.com/mejango/blossm-toolbox-go/rpc/generic"
 )
 
 func client(t *testing.T, handler http.HandlerFunc, options rpc.Options) Client {

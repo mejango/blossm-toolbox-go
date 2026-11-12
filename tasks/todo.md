@@ -62,3 +62,17 @@ framework pin and passes its application gates. Native ownership regression
 closes the Claude finding; its second bounded review reports closure. Exact
 logs/manifests/initial failures are in docs/SEPARATION.md. PR review/approval and
 merge remain separate; no deployment or main update occurred.
+
+## Plan refinement
+
+- **Objective:** Restore familiar JS organizational naming and enforce a clear dependency hierarchy with lib at the bottom, while keeping Dia independently owned and all runtime behavior intact.
+- **System fit:** Shared types/serialization/helpers underpin vendors and procedure logic. Adapter names return to vendors; stores return to procedures/event_stores and view_stores; transport/composition use the closest original names. Dia consumes updated public imports, never moves back into Toolbox.
+- **Reuse and simplicity:** Relocate existing code and extract current shared primitives once; no wrappers, legacy paths, new runtimes or protocol changes. Preserve Go executable entrypoints and necessary package cohesion.
+- **Evidence and unknowns:** JS names are authoritative navigation references, but observed JS lib/RPC and logging/vendor cycles contradict the user's intended hierarchy. Use current Go imports to enforce a clean DAG rather than reproducing historical violations.
+- **Verification:** Add automated dependency-layer checks, including lib-only internal imports and forbidden-edge fixtures; preserve tests and canonical representations. Run both modules' formatting/vet/unit/race, native and container gates, generated-config checks and independent public-pin validation before new paired PR completion.
+- **Resource budget:** Delegate shared-primitives extraction with exclusive Go write ownership first; parent prepares path mapping and gates. Separate behavior-preserving extraction from mechanical folder moves. Preserve old evidence as historical; no merge of new PRs without final approval.
+
+- [x] Extract bottom-layer event protocol and small helpers without changing behavior.
+- [x] Restore familiar folders and update all consumers, docs and generators coherently.
+- [x] Enforce folder dependency rules with executable regression checks.
+- [ ] Verify both independent modules and prepare reviewable changes.
