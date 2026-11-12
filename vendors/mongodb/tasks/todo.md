@@ -80,3 +80,17 @@ candidates, listing, retry/stream and fairness tests passed10.205s on an isolate
 replica set. Ordinary race tests, vet and formatting passed. Parent fixtures,
 module and shared protocol were not changed. Parent may run the consolidated
 suite against this stable handoff; no further Mongo source edits are planned.
+
+## Plan refinement
+
+- **Objective:** Give known-abort Mongo contention a bounded ten-attempt default with jitter while preserving transaction and streaming safety.
+- **System fit:** Only Mongo Update retry scheduling changes; parent owns Dia concurrent-worker cleanup and end-to-end gates.
+- **Reuse and simplicity:** Keep current retry/uncertainty classification and callback loop; add one delay helper and cancellation-aware wait.
+- **Evidence and unknowns:** Initial native log shows five transient known aborts exhausting50ms cumulative linear wait, not missing labels or uncertain commit. No contention-success guarantee follows from a larger bounded budget.
+- **Verification:** Delay ceiling/cap/cancellation unit checks; native default budget, explicit budget exhaustion, committed unknown acknowledgment without replay, single-attempt View and final-attempt no-wait checks.
+- **Resource budget:** Mongo adapter/tests/docs only, installed Go1.27.4 and authorized unique localhost Mongo databases; no huge-body suites, module edits or remote operations.
+
+- [x] Implement bounded retry policy and regression fixtures.
+- [x] Run scoped unit/native race and vet, then release to parent.
+
+Contention review: installed Go1.27.4, GOCACHE=/tmp/blossm-go-dia-cache, GOWORK=off, readonly modules. Ordinary adapter race PASS1.325s; scoped native race PASS3.564s on localhost55449 (default retry budget, explicit budget, unknown committed acknowledgment, View stream, cancellation/final-attempt tests); vet PASS. All native databases were unique and cleaned by the existing fixture. No large chunk suites, remote calls or module edits. Parent owns separate behavior commit and real Dia concurrent/full-native revalidation; this bounded policy does not promise unlimited contention recovery.

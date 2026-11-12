@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"regexp"
 	"time"
 
@@ -18,7 +19,7 @@ import (
 )
 
 // Config has no implicit database or namespace. MaxAttempts includes the first
-// attempt; zero selects five. Only Update callbacks may repeat after a known abort.
+// attempt; zero selects ten. Only Update callbacks may repeat after a known abort.
 type Config struct {
 	URI         string
 	Database    string
@@ -43,7 +44,7 @@ func Open(ctx context.Context, cfg Config) (*Backend, error) {
 		return nil, errors.New("mongo: URI and explicit database/namespace (letters, digits, _ or -) required")
 	}
 	if cfg.MaxAttempts == 0 {
-		cfg.MaxAttempts = 5
+		cfg.MaxAttempts = 10
 	}
 	if cfg.MaxAttempts < 1 || cfg.MaxAttempts > 100 {
 		return nil, errors.New("mongo: MaxAttempts must be 1..100")
@@ -134,16 +135,36 @@ func (b *Backend) run(ctx context.Context, attempts int, fn func(*transaction) e
 			return err
 		}
 		if attempt+1 < attempts {
-			timer := time.NewTimer(time.Duration(attempt+1) * 5 * time.Millisecond)
-			select {
-			case <-ctx.Done():
-				timer.Stop()
-				return ctx.Err()
-			case <-timer.C:
+			if waitErr := waitRetry(ctx, attempt); waitErr != nil {
+				return waitErr
 			}
 		}
 	}
 	return err
+}
+
+// retryDelay uses half-to-full jitter to spread contenders after a known abort.
+// attempt is zero-based: ceilings are 10,20,40,80,160,250,... milliseconds.
+func retryDelay(attempt int) time.Duration {
+	ceiling := 10 * time.Millisecond
+	for i := 0; i < attempt && ceiling < 250*time.Millisecond; i++ {
+		ceiling = min(2*ceiling, 250*time.Millisecond)
+	}
+	half := ceiling / 2
+	return half + time.Duration(rand.Int64N(int64(ceiling-half)+1))
+}
+func waitRetry(ctx context.Context, attempt int) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	timer := time.NewTimer(retryDelay(attempt))
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return ctx.Err()
+	}
 }
 
 func (b *Backend) attempt(ctx context.Context, s *driver.Session, fn func(*transaction) error) error {

@@ -38,9 +38,13 @@ func fixture(t *testing.T) (*Backend, context.Context) {
 
 func fixtureWithBudget(t *testing.T, budget time.Duration) (*Backend, context.Context) {
 	t.Helper()
+	return fixtureWithAttempts(t, budget, 30)
+}
+func fixtureWithAttempts(t *testing.T, budget time.Duration, attempts int) (*Backend, context.Context) {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), budget)
 	t.Cleanup(cancel)
-	b, err := Open(ctx, Config{URI: os.Getenv("MONGODB_URI"), Database: fmt.Sprintf("blossm_mongo_test_%d", time.Now().UnixNano()), Namespace: "test", MaxAttempts: 30})
+	b, err := Open(ctx, Config{URI: os.Getenv("MONGODB_URI"), Database: fmt.Sprintf("blossm_mongo_test_%d", time.Now().UnixNano()), Namespace: "test", MaxAttempts: attempts})
 	must(t, err)
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -577,4 +581,44 @@ func TestNativeViewDoesNotReplayStreams(t *testing.T) {
 			t.Fatal("known abort replayed owned stream", calls, delivered, err)
 		}
 	})
+}
+
+func TestNativeDefaultRetryBudget(t *testing.T) {
+	b, ctx := fixtureWithAttempts(t, 30*time.Second, 0)
+	if b.attempts != 10 {
+		t.Fatal("default total attempts", b.attempts)
+	}
+	failCommands(t, b, ctx, "update", "TransientTransactionError", 9)
+	calls := 0
+	root := testRoot("default-budget")
+	must(t, b.Update(ctx, func(tx eventlib.Tx) error { calls++; return appendRaw(ctx, tx, testEvent(root, 0)) }))
+	if calls != 10 {
+		t.Fatal("default budget did not survive nine known aborts", calls)
+	}
+	must(t, b.View(ctx, func(r eventlib.Reader) error {
+		n, err := r.Count(ctx, root)
+		if n != 1 {
+			t.Fatal("retry committed incorrect count", n)
+		}
+		return err
+	}))
+}
+func TestNativeRetryCancellationAndFinalAttempt(t *testing.T) {
+	b, ctx := fixture(t)
+	for _, attempts := range []int{1, 3} {
+		b.attempts = attempts
+		child, cancel := context.WithCancel(ctx)
+		calls := 0
+		err := b.Update(child, func(eventlib.Tx) error { calls++; cancel(); return retryTransaction })
+		cancel()
+		if calls != 1 {
+			t.Fatal("canceled callback repeated", calls)
+		}
+		if attempts == 1 && !errors.Is(err, retryTransaction) {
+			t.Fatal("final attempt waited instead of preserving abort", err)
+		}
+		if attempts > 1 && !errors.Is(err, context.Canceled) {
+			t.Fatal("retry wait ignored cancellation", err)
+		}
+	}
 }

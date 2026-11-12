@@ -23,7 +23,13 @@ root documents by a real write, forcing conflicting transactions to abort.
 View runs once and returns errors without replaying consumer callbacks or streams.
 Update callbacks must propagate operation errors, tolerate known-abort retries
 and perform no external side effects. `MaxAttempts` applies only to Update,
-includes the first attempt, defaults to five and accepts 1..100. Each driver
+includes the first attempt, defaults to ten and accepts 1..100. Known-abort retries wait with half-to-full
+jitter under exponential ceilings of 10, 20, 40, 80, 160 and then 250ms. The
+250ms cap also applies to explicitly larger attempt budgets. Waits respect
+context cancellation; there is no wait after the last attempt. Retryable error
+classification is unchanged: only the adapter-owned known-abort sentinel or
+`TransientTransactionError` label permits replay, never code112 or error text alone.
+Each driver
 operation also has a 30-second default timeout; callers should set an overall context deadline.
 Unknown commit acknowledgement, network failure during commit or interrupted
 commit returns `eventstore.ErrUncertain` without replaying the callback. The

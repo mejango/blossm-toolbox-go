@@ -27,3 +27,11 @@ Use a shared transactional chunk codec for opaque bytes and conservative query
 fallback for oversized metadata. Gate with a real batch of individually admitted
 small events producing a large tail, plus large-state and cleanup/corruption
 checks. Publication admission is a separate owner rule, not a block-size fix.
+
+## 2026-11-12: Distinguish abort exhaustion from uncertain commits
+
+The concurrent challenge diagnostic showed five callback attempts with a transient
+label and no uncertainty. Fix the bounded contention budget/backoff at its Mongo
+owner; do not invent missing labels or retry error text/code112. Preserve explicit
+limits, cancellation, one-attempt read streams and no callback replay after an
+unknown commit. Gate default-budget recovery with native injected known aborts.
